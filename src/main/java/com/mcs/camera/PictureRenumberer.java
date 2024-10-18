@@ -1,5 +1,8 @@
 package com.mcs.camera;
 
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -11,6 +14,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
 
+import javax.swing.*;
+
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.filefilter.TrueFileFilter;
@@ -21,14 +26,13 @@ import org.slf4j.LoggerFactory;
 import com.drew.imaging.ImageMetadataReader;
 import com.drew.metadata.Directory;
 import com.drew.metadata.Metadata;
-import com.drew.metadata.Tag;
 import com.drew.metadata.exif.ExifSubIFDDirectory;
 import com.drew.metadata.file.FileSystemDirectory;
 
 public class PictureRenumberer {
+
 	static final Logger log = LoggerFactory.getLogger(PictureRenumberer.class.getName());
 
-	private static final String RENUMBER_LOCATION = "F:\\My Pictures\\2020-02-08, Atlanta Snow 2020";
 	private static final int counterStart = 1;
 	private static final boolean forceDate = false;
 	private static final String FORCE_DATE = "2017-10-07";
@@ -37,7 +41,9 @@ public class PictureRenumberer {
 	private static final boolean TRY_FILENAME_DATETIME_ON_METADATA_FAIL = true;
 	private static final boolean ALLOW_ALTERNATE_PARSING = false;
 
-	/** Used to match timestamp in filename */
+	/**
+	 * Used to match timestamp in filename
+	 */
 	private static final String DATETIME_FILENAME_REGEX = "(?m)(19|20)[0-9]{2}[- /.](0[1-9]|1[012])[- /.](0[1-9]|[12][0-9]|3[01]) [0-9]{2}\\\\.[0-9]{2}\\\\.[0-9]{2}";
 
 	SimpleDateFormat dateFormat;
@@ -48,7 +54,17 @@ public class PictureRenumberer {
 	public static void main(String[] args) {
 		log.info("Starting Picture Renumberer v1.0");
 		PictureRenumberer pictureRenumber = new PictureRenumberer();
-		pictureRenumber.renumberPictures();
+
+		String directory = null;
+		try {
+			UIManager.setLookAndFeel("com.sun.java.swing.plaf.windows.WindowsLookAndFeel");
+			directory = pictureRenumber.getHomeDirPath();
+		} catch (Exception e) {
+			e.printStackTrace();
+			System.exit(1);
+		}
+
+		pictureRenumber.renumberPictures(directory);
 	}
 
 	public PictureRenumberer() {
@@ -59,11 +75,32 @@ public class PictureRenumberer {
 		this.dateFormat = dateFormat;
 	}
 
-	private void renumberPictures() {
-		List<File> videos = new ArrayList<>();
+	private String getHomeDirPath() throws IllegalArgumentException {
+		String directory = "";
+		JFileChooser chooser = new JFileChooser();
+		chooser.setCurrentDirectory(new java.io.File("F:\\My Pictures"));
+		chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+		chooser.setApproveButtonText("Select");
+		if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
+			File file = chooser.getSelectedFile();
+			directory = file.getAbsolutePath();
+			if (!(directory.endsWith(File.separator) || directory.endsWith("/"))) {
+				directory += File.separator;
+			}
+		}
+		if (directory.isEmpty()) {
+			throw new IllegalArgumentException("No directory chosen for renumbering.");
+		}
+		return directory;
+	}
 
-		String homeDirPath = RENUMBER_LOCATION;
-		String prefix = RENUMBER_LOCATION.substring(RENUMBER_LOCATION.lastIndexOf(',')+1).trim();
+	private void renumberPictures(String homeDirPath) {
+		List<File> videos = new ArrayList<>();
+		String prefix = homeDirPath.substring(homeDirPath.lastIndexOf(',') + 1, homeDirPath.lastIndexOf(File.separator)).trim();
+		if (homeDirPath.startsWith(prefix)) {
+			// there was no comma in the path
+			prefix = prefix.substring(prefix.lastIndexOf(File.separator)+1);
+		}
 
 		Collection<File> filesInHomeDir = getFilesInDir(homeDirPath);
 		// If there is nothing to do, just exit.
@@ -76,24 +113,16 @@ public class PictureRenumberer {
 		for (File f : filesInHomeDir) {
 			String fileExtension = FilenameUtils.getExtension(f.getName()).toLowerCase();
 			switch (fileExtension) {
-			case "jpg":
-				grabJpgMetadata(f, prefix);
-				break;
-			case "png":
-				grabPngMetadata(f, prefix);
-				break;
-			case "mov":
-			case "avi":
-			case "mkv":
-				if (INLINE_VIDEOS) {
-					grabMovieMetadata(f, prefix);
-				} else {
-					videos.add(f);
+				case "jpg" -> grabJpgMetadata(f, prefix);
+				case "png" -> grabPngMetadata(f, prefix);
+				case "mov", "avi", "mkv" -> {
+					if (INLINE_VIDEOS) {
+						grabMovieMetadata(f, prefix);
+					} else {
+						videos.add(f);
+					}
 				}
-				break;
-			default:
-				log.warn("Ignoring non-JPEG file: " + f.getName());
-				break;
+				default -> log.warn("Ignoring non-JPEG file: " + f.getName());
 			}
 		}
 
@@ -118,8 +147,8 @@ public class PictureRenumberer {
 
 			String newFileName = null;
 			if (prefix != null && !prefix.isEmpty()) {
-				newFileName = homeDirPath + File.separator + prefix + " " + String.format("%03d", currentPictureCounter)
-						+ "." + FilenameUtils.getExtension(origFile.getName()).toLowerCase();
+				newFileName = homeDirPath + prefix + " " + String.format("%03d", currentPictureCounter)
+					+ "." + FilenameUtils.getExtension(origFile.getName()).toLowerCase();
 			} else {
 				newFileName = homeDirPath + File.separator + orderedPicture.replaceAll("\\s", "_").replaceAll(":", "_");
 			}
@@ -159,7 +188,7 @@ public class PictureRenumberer {
 			} else {
 				if (TRY_FILENAME_DATETIME_ON_METADATA_FAIL) {
 					String fileName = f.getName();
-					fileName = fileName.substring(0,fileName.lastIndexOf('.'));
+					fileName = fileName.substring(0, fileName.lastIndexOf('.'));
 					try {
 						boolean foundMatch = fileName.matches(DATETIME_FILENAME_REGEX);
 						if (foundMatch) {
@@ -192,8 +221,9 @@ public class PictureRenumberer {
 
 			String dateTakenStr = null;
 
-			if (dateTaken != null)
+			if (dateTaken != null) {
 				dateTakenStr = dateFormat.format(dateTaken);
+			}
 			if (dateTakenStr == null && !forceDate) {
 				try {
 					SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH.mm.ss");
@@ -203,8 +233,9 @@ public class PictureRenumberer {
 					dateTakenStr = null;
 				}
 			}
-			if (dateTakenStr == null && !forceDate)
+			if (dateTakenStr == null && !forceDate) {
 				throw new RuntimeException("Can't read date taken: " + f.getName());
+			}
 			if (albumDirName == null) {
 				if (forceDate) {
 					albumDirName = FORCE_DATE + ", " + prefix;
@@ -235,7 +266,7 @@ public class PictureRenumberer {
 			} else {
 				if (TRY_FILENAME_DATETIME_ON_METADATA_FAIL) {
 					String fileName = f.getName();
-					fileName = fileName.substring(0,fileName.lastIndexOf('.'));
+					fileName = fileName.substring(0, fileName.lastIndexOf('.'));
 					try {
 						boolean foundMatch = fileName.matches(DATETIME_FILENAME_REGEX);
 						if (foundMatch) {
@@ -268,8 +299,9 @@ public class PictureRenumberer {
 
 			String dateTakenStr = null;
 
-			if (dateTaken != null)
+			if (dateTaken != null) {
 				dateTakenStr = dateFormat.format(dateTaken);
+			}
 			if (dateTakenStr == null && !forceDate) {
 				try {
 					SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH.mm.ss");
@@ -279,8 +311,9 @@ public class PictureRenumberer {
 					dateTakenStr = null;
 				}
 			}
-			if (dateTakenStr == null && !forceDate)
+			if (dateTakenStr == null && !forceDate) {
 				throw new RuntimeException("Can't read date taken: " + f.getName());
+			}
 			if (albumDirName == null) {
 				if (forceDate) {
 					albumDirName = FORCE_DATE + ", " + prefix;
@@ -309,8 +342,9 @@ public class PictureRenumberer {
 			Date dateTaken = new Date(f.lastModified());
 			String dateTakenStr = null;
 
-			if (dateTaken != null)
+			if (dateTaken != null) {
 				dateTakenStr = dateFormat.format(dateTaken);
+			}
 			if (dateTakenStr == null && !forceDate) {
 				try {
 					SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH.mm.ss");
@@ -320,8 +354,9 @@ public class PictureRenumberer {
 					dateTakenStr = null;
 				}
 			}
-			if (dateTakenStr == null && !forceDate)
+			if (dateTakenStr == null && !forceDate) {
 				throw new RuntimeException("Can't read date taken: " + f.getName());
+			}
 			if (albumDirName == null) {
 				if (forceDate) {
 					albumDirName = FORCE_DATE + ", " + prefix;
@@ -340,4 +375,46 @@ public class PictureRenumberer {
 		}
 	}
 
+	class MyJFileChooser extends JPanel
+		implements ActionListener {
+
+		JButton go;
+
+		JFileChooser chooser;
+		String choosertitle;
+
+		public MyJFileChooser() {
+			go = new JButton("Do it");
+			go.addActionListener(this);
+			add(go);
+		}
+
+		@Override
+		public void actionPerformed(ActionEvent e) {
+			int result;
+
+			chooser = new JFileChooser();
+			chooser.setCurrentDirectory(new java.io.File("F:\\My Pictures"));
+			chooser.setDialogTitle(choosertitle);
+			chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+			//
+			// disable the "All files" option.
+			//
+			chooser.setAcceptAllFileFilterUsed(false);
+			//
+			if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
+				System.out.println("getCurrentDirectory(): "
+					+ chooser.getCurrentDirectory());
+				System.out.println("getSelectedFile() : "
+					+ chooser.getSelectedFile());
+			} else {
+				System.out.println("No Selection ");
+			}
+		}
+
+		@Override
+		public Dimension getPreferredSize() {
+			return new Dimension(200, 200);
+		}
+	}
 }

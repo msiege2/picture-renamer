@@ -2,360 +2,286 @@ package com.mcs.camera;
 
 import java.io.File;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.TimeZone;
+import java.util.*;
 
+import com.mcs.camera.extractor.JpgMetadataExtractor;
+import com.mcs.camera.extractor.MetadataExtractor;
+import com.mcs.camera.extractor.PngMetadataExtractor;
+import com.mcs.camera.extractor.VideoMetadataExtractor;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.filefilter.TrueFileFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import com.drew.imaging.ImageMetadataReader;
-import com.drew.metadata.Directory;
-import com.drew.metadata.Metadata;
-import com.drew.metadata.exif.ExifSubIFDDirectory;
+import com.drew.metadata.*;
+import com.drew.metadata.exif.*;
 import com.drew.metadata.file.FileSystemDirectory;
 
 public class PictureRenamer {
-
 	static final Logger log = LoggerFactory.getLogger(PictureRenamer.class.getName());
-
-	private static final String DEFAULT_HOME_DIR = "H:\\Picture Merge";
-	private static final String PREFIX = "Dallas Trip";
+	private static final String DEFAULT_DESTINATION_DIR = "F:\\My Pictures";
 	private static final boolean forceCounter = false;
 	private static final int counterStart = 1;
-	private static final boolean forceDate = false;
-	private static final String FORCE_DATE = "2020-04-28";
-	private static final boolean MOVE_WHEN_FINISHED = true;
-	private static final boolean INCLUDE_VIDEOS = true;
-	private static final boolean INLINE_VIDEOS = true;
-	private static final boolean TRY_FILENAME_DATETIME_ON_METADATA_FAIL = true;
-	private static final boolean ALLOW_ALTERNATE_PARSING = false;
 
-	/**
-	 * Used to match timestamp in filename
-	 */
-	private static final String DATETIME_FILENAME_REGEX = "(?m)(19|20)[0-9]{2}[- /.](0[1-9]|1[012])[- /.](0[1-9]|[12][0-9]|3[01]) [0-9]{2}\\\\.[0-9]{2}\\\\.[0-9]{2}";
+	private final String sourceDir;
+	private final boolean forceDateFlag;
+	private final String forceDate;
+	private final boolean keepOrder;
+	private final boolean moveWhenFinished = true;
+	private final boolean includeVideos;
+	private final boolean inlineVideos;
+	private final boolean tryFilenameDateTimeOnMetadataFail;
+	private final boolean allowAlternateParsing = false;
+	private final String prefix;
 
 	SimpleDateFormat dateFormat;
 	String albumDirName = null;
+	String albumYear = null;
 	List<String> temporaryNames = new ArrayList<>();
 	Map<String, File> fileMap = new HashMap<>();
 
-	public static void main(String[] args) {
-		log.info("Starting Picture Renamer v2.0");
-		PictureRenamer pictureRenamer = new PictureRenamer();
-		pictureRenamer.renamePictures();
-	}
-
-	public PictureRenamer() {
+	public PictureRenamer(AlbumDetails albumDetails) {
+		this.prefix = albumDetails.getPrefix();
+		this.sourceDir = albumDetails.getSourceDir();
+		this.forceDateFlag = albumDetails.isForceDateFlag();
+		this.forceDate = albumDetails.getForceDate();
+		this.includeVideos = albumDetails.isIncludeVideos();
+		this.inlineVideos = albumDetails.isInlineVideos();
+		this.keepOrder = albumDetails.isKeepOrder();
+		this.tryFilenameDateTimeOnMetadataFail = albumDetails.isTryFilenameDateTimeOnMetadataFail();
 		this.dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 	}
 
-	public PictureRenamer(SimpleDateFormat dateFormat) {
-		this.dateFormat = dateFormat;
-	}
-
-	private void renamePictures() {
+	public void renamePictures() {
 		List<File> videos = new ArrayList<>();
-
-		String homeDirPath = DEFAULT_HOME_DIR;
-
+		String homeDirPath = sourceDir;
+		String destDirPath = DEFAULT_DESTINATION_DIR;
 		Collection<File> filesInHomeDir = getFilesInDir(homeDirPath);
-		// If there is nothing to do, just exit.
+
 		if (filesInHomeDir.isEmpty()) {
 			log.warn("No files found in home directory -- " + homeDirPath);
 			return;
 		}
 
-		// Step 1, Go each file and rename as a date based on exif information.
-		for (File f : filesInHomeDir) {
-			String fileExtension = FilenameUtils.getExtension(f.getName()).toLowerCase();
-			switch (fileExtension) {
-				case "jpg":
-					grabJpgMetadata(f);
-					break;
-				case "png":
-					grabPngMetadata(f, PREFIX);
-				case "mov":
-				case "avi":
-				case "mkv":
-					if (INLINE_VIDEOS) {
-						grabMovieMetadata(f);
-					} else {
-						videos.add(f);
-					}
-					break;
-				default:
-					log.warn("Ignoring unknown file type: " + f.getName());
-					break;
+		if (keepOrder) {
+			log.info("KEEP_ORDER on. Skipping metadata checks. This forces FORCE_DATE to true.");
+			albumDirName = forceDate + ", " + prefix;
+			for (File f : filesInHomeDir) {
+				temporaryNames.add(f.getName());
+				fileMap.put(f.getName(), f);
 			}
+			Collections.sort(temporaryNames, new FilenameComparator());
+		} else {
+			for (File f : filesInHomeDir) {
+				String fileExtension = FilenameUtils.getExtension(f.getName()).toLowerCase();
+				switch (fileExtension) {
+					case "jpg":
+						grabJpgMetadata(f);
+						break;
+					case "png":
+						grabPngMetadata(f);
+						break;
+					case "mov":
+					case "avi":
+					case "mkv":
+					case "mp4":
+						if (includeVideos) {
+							if (inlineVideos) {
+								grabMovieMetadata(f);
+							} else {
+								videos.add(f);
+							}
+						}
+						break;
+					default:
+						log.warn("Ignoring unknown file type: " + f.getName());
+						break;
+				}
+			}
+			Collections.sort(temporaryNames);
 		}
 
-		// Sort all the files to be in date order.
-		Collections.sort(temporaryNames);
+		int currentPictureCounter = forceCounter ? counterStart : getCurrentCounter();
 
-		int currentPictureCounter = counterStart;
-		if (!forceCounter) {
-			currentPictureCounter = getCurrentCounter();
-		}
 		for (String orderedPicture : temporaryNames) {
 			File origFile = fileMap.get(orderedPicture);
-			if (!origFile.exists()) {
-				log.error("Prior to renaming -- cannot find file " + origFile.getName());
+			if (origFile == null || !origFile.exists()) {
+				log.error("Prior to renaming -- cannot find file " + orderedPicture);
 				return;
 			}
 		}
 
 		for (String orderedPicture : temporaryNames) {
 			File origFile = fileMap.get(orderedPicture);
-			String newFileName = null;
-			if (PREFIX != null && !PREFIX.isEmpty()) {
-				newFileName = homeDirPath + File.separator + PREFIX + " " + String.format("%03d", currentPictureCounter)
-					+ "." + FilenameUtils.getExtension(origFile.getName()).toLowerCase();
+			String newFileName;
+			if (prefix != null && !prefix.isEmpty()) {
+				newFileName = homeDirPath + File.separator + prefix + " "
+						+ String.format("%03d", currentPictureCounter) + "."
+						+ FilenameUtils.getExtension(origFile.getName()).toLowerCase();
 			} else {
-				newFileName = homeDirPath + File.separator + orderedPicture.replaceAll("\\s", "_").replaceAll(":", "_");
+				newFileName = homeDirPath + File.separator
+						+ orderedPicture.replaceAll("\\s", "_").replaceAll(":", "_");
 			}
 			origFile.renameTo(new File(newFileName));
 			currentPictureCounter++;
 		}
 
-		if (INCLUDE_VIDEOS && !INLINE_VIDEOS) {
+		if (includeVideos && !inlineVideos) {
 			for (File f : videos) {
-				String extension = f.getName().substring(f.getName().length() - 3);
-				String newFileName = homeDirPath + File.separator + PREFIX + " "
-					+ String.format("%03d", currentPictureCounter) + "." + extension.toLowerCase();
+				String extension = FilenameUtils.getExtension(f.getName()).toLowerCase();
+				String newFileName = homeDirPath + File.separator + prefix + " "
+						+ String.format("%03d", currentPictureCounter) + "." + extension;
 				log.debug("Renaming video file " + f.getName() + " to " + newFileName);
 				f.renameTo(new File(newFileName));
 				currentPictureCounter++;
 			}
 		}
 
-		if (MOVE_WHEN_FINISHED) {
-			File dir = new File("F:\\My Pictures\\" + albumDirName);
+		if (moveWhenFinished) {
+			try {
+				albumYear = albumDirName.substring(0, 4);
+			} catch (Exception e) {
+				albumYear = null;
+				log.warn("Failed to parse year from album name.");
+			}
+			File dir = new File(destDirPath + File.separator + albumYear + File.separator + albumDirName);
 			if (!dir.exists()) {
-				dir.mkdir();
+				dir.mkdirs();
 			}
 			filesInHomeDir = getFilesInDir(homeDirPath);
 			for (File f : filesInHomeDir) {
-				f.renameTo(new File("F:\\My Pictures\\" + albumDirName + "\\" + f.getName()));
-				log.debug("Moving file to: " + "F:\\My Pictures\\" + albumDirName + "\\" + f.getName());
+				f.renameTo(new File(dir.getAbsolutePath() + File.separator + f.getName()));
+				log.debug("Moving file to: " + dir.getAbsolutePath() + File.separator + f.getName());
 			}
 		}
-
 	}
 
 	private int getCurrentCounter() {
 		return 1;
 	}
 
-	private Collection<File> getFilesInDir(String directoryPath) {
+	Collection<File> getFilesInDir(String directoryPath) {
 		log.info("Using home directory: " + directoryPath);
-
 		final File homeDir = new File(directoryPath);
 		return FileUtils.listFiles(homeDir, TrueFileFilter.INSTANCE, null);
 	}
 
-	private void grabJpgMetadata(File f) {
+	void grabJpgMetadata(File f) {
 		try {
-			Metadata metadata = ImageMetadataReader.readMetadata(f);
-			Directory directory = metadata.getFirstDirectoryOfType(ExifSubIFDDirectory.class);
+			MetadataExtractor extractor = new JpgMetadataExtractor();
+			Date dateTaken = extractor.extractDateTaken(f);
 
-			Date dateTaken = null;
-			// there is no metadata available
-			if (directory != null) {
-				dateTaken = directory.getDate(ExifSubIFDDirectory.TAG_DATETIME_ORIGINAL, TimeZone.getDefault());
-			} else {
-				if (TRY_FILENAME_DATETIME_ON_METADATA_FAIL) {
-					String fileName = f.getName();
-					fileName = fileName.substring(0, fileName.lastIndexOf('.'));
-					try {
-						SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH.mm.ss");
-						dateTaken = sdf.parse(f.getName());
-					} catch (Exception ex) {
-						log.warn("Could not parse timestamp from filename.", ex);
-					}
-				}
-				if (dateTaken == null && ALLOW_ALTERNATE_PARSING) {
-					String altDate = f.getName().replaceAll("-", "").substring(0, 11);
-					dateTaken = new Date(Long.parseLong(altDate));
-				}
-				if (dateTaken == null) {
-					log.error("Error in image processing at file " + f.getName() + ".  Cannot continue.");
-					System.exit(1);
+			if (dateTaken == null) {
+				if (tryFilenameDateTimeOnMetadataFail) {
+					dateTaken = parseDateFromFilename(f.getName());
 				}
 			}
 
 			if (dateTaken == null) {
-				// fall back on file modification date
-				Directory backupDirectory = metadata.getFirstDirectoryOfType(FileSystemDirectory.class);
-				if (backupDirectory != null) {
-					dateTaken = backupDirectory.getDate(FileSystemDirectory.TAG_FILE_MODIFIED_DATE);
-				}
-
+				dateTaken = new Date(f.lastModified());
 			}
 
-			String dateTakenStr = null;
+			if (dateTaken == null && forceDateFlag) {
+				dateTaken = dateFormat.parse(forceDate + " 00:00:00");
+			}
 
-			if (dateTaken != null) {
-				dateTakenStr = dateFormat.format(dateTaken);
-			}
-			if (dateTakenStr == null && !forceDate) {
-				try {
-					SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH.mm.ss");
-					Date filenameDate = sdf.parse(f.getName());
-					dateTakenStr = dateFormat.format(filenameDate);
-				} catch (Exception e) {
-					dateTakenStr = null;
-				}
-			}
-			if (dateTakenStr == null && !forceDate) {
+			if (dateTaken == null) {
 				throw new RuntimeException("Can't read date taken: " + f.getName());
 			}
+
+			String dateTakenStr = dateFormat.format(dateTaken);
+
 			if (albumDirName == null) {
-				if (forceDate) {
-					albumDirName = FORCE_DATE + ", " + PREFIX;
-					dateTakenStr = FORCE_DATE;
-				} else {
-					albumDirName = dateTakenStr.substring(0, dateTakenStr.indexOf(" ")) + ", " + PREFIX;
-				}
+				albumDirName = (forceDateFlag ? forceDate : dateTakenStr.substring(0, 10)) + ", " + prefix;
 			}
+
 			String tempName = dateTakenStr + " " + f.getName();
-			log.debug("Date taken: " + f.getName() + "-->" + dateTakenStr);
+			log.debug("Date taken: " + f.getName() + " --> " + dateTakenStr);
 			temporaryNames.add(tempName);
 			fileMap.put(tempName, f);
 		} catch (Exception e) {
-			log.error("Error in image processing at file " + f.getName() + ".  Cannot continue.", e);
+			log.error("Error processing image file " + f.getName(), e);
 			System.exit(1);
 		}
 	}
 
-	private void grabPngMetadata(File f, String prefix) {
+	void grabPngMetadata(File f) {
 		try {
-			Metadata metadata = ImageMetadataReader.readMetadata(f);
-			Directory directory = metadata.getFirstDirectoryOfType(FileSystemDirectory.class);
+			MetadataExtractor extractor = new PngMetadataExtractor();
+			Date dateTaken = extractor.extractDateTaken(f);
 
-			Date dateTaken = null;
-			// there is no metadata available
-			if (directory != null) {
-				dateTaken = directory.getDate(FileSystemDirectory.TAG_FILE_MODIFIED_DATE, TimeZone.getDefault());
-			} else {
-				if (TRY_FILENAME_DATETIME_ON_METADATA_FAIL) {
-					String fileName = f.getName();
-					fileName = fileName.substring(0, fileName.lastIndexOf('.'));
-					try {
-						boolean foundMatch = fileName.matches(DATETIME_FILENAME_REGEX);
-						if (foundMatch) {
-							SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH.mm.ss");
-							dateTaken = sdf.parse(f.getName());
-						}
-					} catch (Exception ex) {
-						log.warn("Could not parse timestamp from filename.", ex);
-					}
-
-				}
-				if (dateTaken == null && ALLOW_ALTERNATE_PARSING) {
-					String altDate = f.getName().replaceAll("-", "").substring(0, 11);
-					dateTaken = new Date(Long.parseLong(altDate));
-				}
-				if (dateTaken == null) {
-					log.error("Error in image processing at file " + f.getName() + ".  Cannot continue.");
-					System.exit(1);
+			if (dateTaken == null) {
+				if (tryFilenameDateTimeOnMetadataFail) {
+					dateTaken = parseDateFromFilename(f.getName());
 				}
 			}
 
 			if (dateTaken == null) {
-				// fall back on file modification date
-				Directory backupDirectory = metadata.getFirstDirectoryOfType(FileSystemDirectory.class);
-				if (backupDirectory != null) {
-					dateTaken = backupDirectory.getDate(FileSystemDirectory.TAG_FILE_MODIFIED_DATE);
-				}
-
+				dateTaken = new Date(f.lastModified());
 			}
 
-			String dateTakenStr = null;
+			if (dateTaken == null && forceDateFlag) {
+				dateTaken = dateFormat.parse(forceDate + " 00:00:00");
+			}
 
-			if (dateTaken != null) {
-				dateTakenStr = dateFormat.format(dateTaken);
-			}
-			if (dateTakenStr == null && !forceDate) {
-				try {
-					SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH.mm.ss");
-					Date filenameDate = sdf.parse(f.getName());
-					dateTakenStr = dateFormat.format(filenameDate);
-				} catch (Exception e) {
-					dateTakenStr = null;
-				}
-			}
-			if (dateTakenStr == null && !forceDate) {
+			if (dateTaken == null) {
 				throw new RuntimeException("Can't read date taken: " + f.getName());
 			}
+
+			String dateTakenStr = dateFormat.format(dateTaken);
+
 			if (albumDirName == null) {
-				if (forceDate) {
-					albumDirName = FORCE_DATE + ", " + prefix;
-					dateTakenStr = FORCE_DATE;
-				} else {
-					albumDirName = dateTakenStr.substring(0, dateTakenStr.indexOf(" ")) + ", " + prefix;
-				}
+				albumDirName = (forceDateFlag ? forceDate : dateTakenStr.substring(0, 10)) + ", " + prefix;
 			}
+
 			String tempName = dateTakenStr + " " + f.getName();
-			log.debug("Date taken: " + f.getName() + "-->" + dateTakenStr);
+			log.debug("Date taken: " + f.getName() + " --> " + dateTakenStr);
 			temporaryNames.add(tempName);
 			fileMap.put(tempName, f);
 		} catch (Exception e) {
-			log.error("Error in image processing at file " + f.getName() + ".  Cannot continue.", e);
+			log.error("Error processing PNG file " + f.getName(), e);
 			System.exit(1);
 		}
 	}
 
-	private void grabMovieMetadata(File f) {
+	void grabMovieMetadata(File f) {
 		try {
-			// Path p = Paths.get(f.getAbsolutePath());
-			// BasicFileAttributes view = Files.getFileAttributeView(p,
-			// BasicFileAttributeView.class).readAttributes();
-			// FileTime fileTime = view.creationTime();
+			MetadataExtractor extractor = new VideoMetadataExtractor();
+			Date dateTaken = extractor.extractDateTaken(f);
 
-			Date dateTaken = new Date(f.lastModified());
-			String dateTakenStr = null;
+			if (dateTaken == null && forceDateFlag) {
+				dateTaken = dateFormat.parse(forceDate + " 00:00:00");
+			}
 
-			if (dateTaken != null) {
-				dateTakenStr = dateFormat.format(dateTaken);
-			}
-			if (dateTakenStr == null && !forceDate) {
-				try {
-					SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH.mm.ss");
-					Date filenameDate = sdf.parse(f.getName());
-					dateTakenStr = dateFormat.format(filenameDate);
-				} catch (Exception e) {
-					dateTakenStr = null;
-				}
-			}
-			if (dateTakenStr == null && !forceDate) {
+			if (dateTaken == null) {
 				throw new RuntimeException("Can't read date taken: " + f.getName());
 			}
+
+			String dateTakenStr = dateFormat.format(dateTaken);
+
 			if (albumDirName == null) {
-				if (forceDate) {
-					albumDirName = FORCE_DATE + ", " + PREFIX;
-					dateTakenStr = FORCE_DATE;
-				} else {
-					albumDirName = dateTakenStr.substring(0, dateTakenStr.indexOf(" ")) + ", " + PREFIX;
-				}
+				albumDirName = (forceDateFlag ? forceDate : dateTakenStr.substring(0, 10)) + ", " + prefix;
 			}
+
 			String tempName = dateTakenStr + " " + f.getName();
-			log.debug("Date taken: " + f.getName() + "-->" + dateTakenStr);
+			log.debug("Date taken: " + f.getName() + " --> " + dateTakenStr);
 			temporaryNames.add(tempName);
 			fileMap.put(tempName, f);
 		} catch (Exception e) {
-			log.error("Error in image processing at file " + f.getName() + ".  Cannot continue.", e);
+			log.error("Error processing video file " + f.getName(), e);
 			System.exit(1);
 		}
 	}
 
+	Date parseDateFromFilename(String fileName) {
+		try {
+			fileName = fileName.substring(0, fileName.lastIndexOf('.'));
+			SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH.mm.ss");
+			return sdf.parse(fileName);
+		} catch (Exception e) {
+			log.warn("Could not parse date from filename: " + fileName);
+			return null;
+		}
+	}
 }
