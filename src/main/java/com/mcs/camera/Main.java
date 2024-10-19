@@ -1,6 +1,7 @@
 package com.mcs.camera;
 
 import javax.swing.*;
+import java.awt.*;
 import java.io.File;
 import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
@@ -13,7 +14,7 @@ import com.sun.jna.platform.win32.WinDef.HWND;
 public class Main {
     static final Logger log = LoggerFactory.getLogger(Main.class.getName());
     private static final String LOCK_FILE = System.getProperty("user.home") + File.separator + ".PictureRenamer.lock";
-    private static final String APP_TITLE = "Picture Renamer v3.0";
+    private static final String APP_TITLE = "Picture Renamer v3.1";
 
     public static void main(String[] args) {
         log.info("Starting " + APP_TITLE);
@@ -51,6 +52,8 @@ public class Main {
         if (hwnd != null) {
             user32.ShowWindow(hwnd, User32.SW_RESTORE);
             user32.SetForegroundWindow(hwnd);
+            // Play a system notification sound
+            Toolkit.getDefaultToolkit().beep();
             log.info("Switched focus to existing PictureRenamer window.");
         } else {
             log.warn("Another instance of PictureRenamer is running, but the window couldn't be found.");

@@ -1,13 +1,14 @@
 package com.mcs.camera;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.io.File;
 import java.io.RandomAccessFile;
 import java.nio.channels.FileLock;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class UIHandler {
     static final Logger log = LoggerFactory.getLogger(UIHandler.class.getName());
@@ -16,6 +17,16 @@ public class UIHandler {
     private final FileLock lock;
     private final RandomAccessFile randomAccessFile;
     private final File lockFile;
+
+    // Fields to store user input
+    private String prefix = "";
+    private String sourceDir = "H:\\Picture Merge";
+    private boolean forceDateFlag = false;
+    private String forceDate = "";
+    private boolean includeVideos = true;
+    private boolean inlineVideos = true;
+    private boolean keepOrder = false;
+    private boolean tryFilenameDateTimeOnMetadataFail = true;
 
     public UIHandler(String appTitle, FileLock lock, RandomAccessFile randomAccessFile, File lockFile) {
         this.appTitle = appTitle;
@@ -78,15 +89,6 @@ public class UIHandler {
     }
 
     public AlbumDetails getAlbumDetails() {
-        String prefix = "";
-        String sourceDir = "H:\\Picture Merge";
-        boolean forceDateFlag = false;
-        String forceDate = "";
-        boolean includeVideos = true;
-        boolean inlineVideos = true;
-        boolean keepOrder = false;
-        boolean tryFilenameDateTimeOnMetadataFail = true;
-
         boolean validInput = false;
 
         while (!validInput) {
@@ -108,7 +110,7 @@ public class UIHandler {
             albumPanel.add(albumNameLabel, gbc);
 
             gbc.gridx = 1;
-            JTextField albumNameField = new JTextField(20);
+            JTextField albumNameField = new JTextField(prefix, 20);
             albumPanel.add(albumNameField, gbc);
 
             gbc.gridx = 0;
@@ -120,8 +122,7 @@ public class UIHandler {
 
             gbc.gridx = 1;
             JPanel sourceDirPanel = new JPanel(new BorderLayout());
-            JTextField sourceDirField = new JTextField(20);
-            sourceDirField.setText("H:\\Picture Merge");
+            JTextField sourceDirField = new JTextField(sourceDir, 20);
             JButton browseButton = new JButton("Browse");
             sourceDirPanel.add(sourceDirField, BorderLayout.CENTER);
             sourceDirPanel.add(browseButton, BorderLayout.EAST);
@@ -146,52 +147,61 @@ public class UIHandler {
             JPanel optionsPanel = new JPanel(new GridBagLayout());
             optionsPanel.setBorder(BorderFactory.createTitledBorder("Options"));
 
+            gbc = new GridBagConstraints();
+            gbc.anchor = GridBagConstraints.WEST;
+            gbc.insets = new Insets(2, 5, 2, 5);  // Reduced vertical padding
+            gbc.fill = GridBagConstraints.HORIZONTAL;
+
             gbc.gridx = 0;
             gbc.gridy = 0;
             gbc.gridwidth = 2;
-            JCheckBox forceDateFlagCheckBox = new JCheckBox("  Force Date", false);
+            JCheckBox forceDateFlagCheckBox = new JCheckBox("Force Date", forceDateFlag);
             forceDateFlagCheckBox.setToolTipText("Select to use a specific date for all files.");
-            forceDateFlagCheckBox.setFont(new Font("Arial", Font.BOLD, 14));
             optionsPanel.add(forceDateFlagCheckBox, gbc);
 
             gbc.gridy = 1;
             gbc.gridwidth = 1;
-            JLabel forceDateLabel = new JLabel("        Forced Date (YYYY-MM-DD):");
+            gbc.insets = new Insets(0, 27, 2, 5);  // Added left padding to align with checkbox
+            JLabel forceDateLabel = new JLabel("Forced Date (YYYY-MM-DD):");
             forceDateLabel.setFont(new Font("Arial", Font.PLAIN, 11));
             forceDateLabel.setToolTipText("Enter the date to use when 'Force Date' is selected.");
             optionsPanel.add(forceDateLabel, gbc);
 
             gbc.gridx = 1;
-            JTextField forceDateField = new JTextField(10);
-            forceDateField.setEnabled(false);
+            gbc.insets = new Insets(0, 5, 2, 5);  // Reset left padding
+            JTextField forceDateField = new JTextField(forceDate, 10);
+            forceDateField.setEnabled(forceDateFlag);
             optionsPanel.add(forceDateField, gbc);
 
             forceDateFlagCheckBox.addItemListener(new ItemListener() {
                 public void itemStateChanged(ItemEvent e) {
                     forceDateField.setEnabled(forceDateFlagCheckBox.isSelected());
+                    forceDateLabel.setEnabled(forceDateFlagCheckBox.isSelected());
                 }
             });
 
             gbc.gridx = 0;
             gbc.gridy = 2;
             gbc.gridwidth = 2;
-            JCheckBox includeVideosCheckBox = new JCheckBox("Include videos", true);
+            gbc.insets = new Insets(10, 5, 2, 5);  // Added top padding to separate from force date group
+            JCheckBox includeVideosCheckBox = new JCheckBox("Include videos", includeVideos);
             includeVideosCheckBox.setToolTipText("Include video files in the processing.");
             optionsPanel.add(includeVideosCheckBox, gbc);
 
+
             gbc.gridy = 3;
-            JCheckBox inlineVideosCheckBox = new JCheckBox("Number videos inline", true);
+            JCheckBox inlineVideosCheckBox = new JCheckBox("Number videos inline", inlineVideos);
             inlineVideosCheckBox.setToolTipText("Include videos in the numbering sequence.");
             optionsPanel.add(inlineVideosCheckBox, gbc);
 
             gbc.gridy = 4;
-            JCheckBox keepOrderCheckBox = new JCheckBox("Keep order", false);
+            JCheckBox keepOrderCheckBox = new JCheckBox("Keep order", keepOrder);
             keepOrderCheckBox.setToolTipText("Keep the original order of files.");
             optionsPanel.add(keepOrderCheckBox, gbc);
 
             gbc.gridy = 5;
             JCheckBox tryFilenameDateTimeCheckBox = new JCheckBox(
-                    "Use filename date/time if metadata unavailable", true);
+                    "Use filename date/time if metadata unavailable", tryFilenameDateTimeOnMetadataFail);
             tryFilenameDateTimeCheckBox
                     .setToolTipText("Attempt to extract date/time from filename if metadata is missing.");
             optionsPanel.add(tryFilenameDateTimeCheckBox, gbc);

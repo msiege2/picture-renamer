@@ -1,8 +1,8 @@
 package com.mcs.camera;
 
+import java.math.BigInteger;
 import java.util.Comparator;
 import java.util.regex.Pattern;
-import java.math.BigInteger;
 
 public final class FilenameComparator implements Comparator<String> {
     private static final Pattern NUMBERS =

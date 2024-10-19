@@ -1,8 +1,10 @@
 package com.mcs.camera.extractor;
 
 import com.drew.imaging.ImageMetadataReader;
-import com.drew.metadata.*;
-import com.drew.metadata.exif.*;
+import com.drew.metadata.Directory;
+import com.drew.metadata.Metadata;
+import com.drew.metadata.exif.ExifSubIFDDirectory;
+
 import java.io.File;
 import java.util.Date;
 import java.util.TimeZone;
