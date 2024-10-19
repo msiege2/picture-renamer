@@ -1,9 +1,5 @@
 package com.mcs.camera;
 
-import java.io.File;
-import java.text.SimpleDateFormat;
-import java.util.*;
-
 import com.mcs.camera.extractor.JpgMetadataExtractor;
 import com.mcs.camera.extractor.MetadataExtractor;
 import com.mcs.camera.extractor.PngMetadataExtractor;
@@ -13,10 +9,10 @@ import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.filefilter.TrueFileFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import com.drew.imaging.ImageMetadataReader;
-import com.drew.metadata.*;
-import com.drew.metadata.exif.*;
-import com.drew.metadata.file.FileSystemDirectory;
+
+import java.io.File;
+import java.text.SimpleDateFormat;
+import java.util.*;
 
 public class PictureRenamer {
 	static final Logger log = LoggerFactory.getLogger(PictureRenamer.class.getName());
