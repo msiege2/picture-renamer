@@ -208,7 +208,7 @@ public class UIHandler {
 
             panel.add(optionsPanel);
 
-            int result = JOptionPane.showConfirmDialog(mainFrame, panel, "Please Provide Album Creator Details",
+            int result = JOptionPane.showConfirmDialog(mainFrame, panel, "Picture Renamer v3.1: Please Provide Album Creator Details",
                     JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
 
             if (result == JOptionPane.OK_OPTION) {
@@ -243,12 +243,18 @@ public class UIHandler {
                     }
                 }
 
+                // First, let's add a check for an empty source directory
                 File srcDir = new File(sourceDir);
                 if (!srcDir.exists() || !srcDir.isDirectory()) {
                     JOptionPane.showMessageDialog(mainFrame, "Source directory does not exist.", "Input Error",
                             JOptionPane.ERROR_MESSAGE);
                     continue;
+                } else if (srcDir.listFiles() == null || srcDir.listFiles().length == 0) {
+                    JOptionPane.showMessageDialog(mainFrame, "Source directory is empty.", "Input Error",
+                            JOptionPane.ERROR_MESSAGE);
+                    continue;
                 }
+
 
                 validInput = true;
             } else {
@@ -257,37 +263,26 @@ public class UIHandler {
         }
 
         StringBuilder confirmationMessage = new StringBuilder();
-        confirmationMessage.append("<html>Do you want to proceed?<br><table>");
-        confirmationMessage.append("<tr><td align='left'><b>Album Name:</b></td><td align='right'>").append(prefix)
-                .append("</td></tr>");
-        confirmationMessage.append(
-                        "<tr><td align='left'><b>Source Directory:</b></td><td align='right'>").append(sourceDir)
-                .append("</td></tr>");
-        confirmationMessage.append(
-                        "<tr><td align='left'><b>Force Date Flag:</b></td><td align='right'>").append(forceDateFlag)
-                .append("</td></tr>");
+        confirmationMessage.append("<html><body style='width: 450px; font-family: Arial, sans-serif;'>");
+        confirmationMessage.append("<h2 style='color: #4a4a4a; font-size: 18px;'>Confirm Your Inputs</h2>");
+        confirmationMessage.append("<table style='width: 100%; border-collapse: collapse;'>");
+        confirmationMessage.append(formatRow("Album Name", prefix));
+        confirmationMessage.append(formatRow("Source Directory", sourceDir));
+        confirmationMessage.append(formatRow("Force Date", forceDateFlag ? "Yes" : "No"));
         if (forceDateFlag) {
-            confirmationMessage.append(
-                            "<tr><td align='left'><b>Forced Date:</b></td><td align='right'>").append(forceDate)
-                    .append("</td></tr>");
+            confirmationMessage.append(formatRow("Forced Date", forceDate));
         }
-        confirmationMessage.append(
-                        "<tr><td align='left'><b>Include Videos:</b></td><td align='right'>").append(includeVideos)
-                .append("</td></tr>");
-        confirmationMessage.append(
-                        "<tr><td align='left'><b>Number Videos Inline:</b></td><td align='right'>").append(inlineVideos)
-                .append("</td></tr>");
-        confirmationMessage.append("<tr><td align='left'><b>Keep Order:</b></td><td align='right'>")
-                .append(keepOrder).append("</td></tr>");
-        confirmationMessage.append(
-                        "<tr><td align='left'><b>Use Filename Date/Time If Metadata Fails:</b></td><td align='right'>")
-                .append(tryFilenameDateTimeOnMetadataFail).append("</td></tr>");
-        confirmationMessage.append("</table></html>");
+        confirmationMessage.append(formatRow("Include Videos", includeVideos ? "Yes" : "No"));
+        confirmationMessage.append(formatRow("Number Videos Inline", inlineVideos ? "Yes" : "No"));
+        confirmationMessage.append(formatRow("Keep Order", keepOrder ? "Yes" : "No"));
+        confirmationMessage.append(formatRow("Use Filename Date/Time If Metadata Fails", tryFilenameDateTimeOnMetadataFail ? "Yes" : "No"));
+        confirmationMessage.append("</table>");
+        confirmationMessage.append("<p style='color: #4a4a4a; font-weight: bold; font-size: 14px; margin-top: 15px;'>Do you want to proceed?</p>");
+        confirmationMessage.append("</body></html>");
 
         JLabel confirmationLabel = new JLabel(confirmationMessage.toString());
-        confirmationLabel.setFont(new Font("Arial", Font.BOLD, 18));
         int confirmationInput = JOptionPane.showConfirmDialog(mainFrame, confirmationLabel, "Confirm Your Inputs",
-                JOptionPane.YES_NO_OPTION);
+                JOptionPane.YES_NO_OPTION, JOptionPane.PLAIN_MESSAGE);
 
         if (confirmationInput != JOptionPane.YES_OPTION) {
             log.error("Confirmation failed.");
@@ -296,5 +291,21 @@ public class UIHandler {
 
         return new AlbumDetails(prefix, sourceDir, forceDateFlag, forceDate, includeVideos, inlineVideos, keepOrder,
                 tryFilenameDateTimeOnMetadataFail);
+    }
+
+    private String formatRow(String label, String value) {
+        boolean isImportant = label.equals("Album Name") || label.equals("Source Directory");
+        String backgroundColor = isImportant ? "#f0f0f0" : "#ffffff";
+        String fontSize = isImportant ? "16px" : "11px";
+        String fontWeight = isImportant ? "bold" : "normal";
+
+        return String.format("<tr style='background-color: %s;'>" +
+                        "<td style='padding: %s; font-weight: bold; color: #333; font-size: %s;'>%s:</td>" +
+                        "<td style='padding: %s; color: #0066cc; font-size: %s; font-weight: %s;'>%s</td></tr>",
+                backgroundColor,
+                isImportant ? "10px 8px" : "6px 8px",
+                fontSize, label,
+                isImportant ? "10px 8px" : "6px 8px",
+                fontSize, fontWeight, value);
     }
 }
