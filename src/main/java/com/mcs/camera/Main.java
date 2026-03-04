@@ -16,38 +16,44 @@ import com.sun.jna.platform.win32.WinDef.HWND;
 public class Main {
     static final Logger log = LoggerFactory.getLogger(Main.class.getName());
     private static final String LOCK_FILE = System.getProperty("user.home") + File.separator + ".PictureRenamer.lock";
-    private static final String APP_TITLE = loadAppTitle();
+    private static final String APP_TITLE = "Picture Renamer";
+    private static final String APP_VERSION = loadAppVersion();
 
-    private static String loadAppTitle() {
+    public static String getAppTitle() {
+        return APP_TITLE;
+    }
+
+    public static String getAppVersion() {
+        return APP_VERSION;
+    }
+
+    private static String loadAppVersion() {
         try (InputStream is = Main.class.getResourceAsStream("/app.properties")) {
             Properties props = new Properties();
             props.load(is);
-            return "Picture Renamer v" + props.getProperty("app.version", "?");
+            return props.getProperty("app.version", "?");
         } catch (Exception e) {
-            return "Picture Renamer";
+            return "?";
         }
     }
 
     public static void main(String[] args) {
-        log.info("Starting " + APP_TITLE);
+        log.info("Starting {} v{}", APP_TITLE, APP_VERSION);
 
         try {
-            // Try to acquire a lock on a file
             File file = new File(LOCK_FILE);
             RandomAccessFile randomAccessFile = new RandomAccessFile(file, "rw");
             FileChannel channel = randomAccessFile.getChannel();
             FileLock lock = channel.tryLock();
 
             if (lock == null) {
-                // Another instance is running
                 log.info("Another instance of PictureRenamer is already running.");
                 focusExistingWindow();
                 System.exit(0);
             }
 
-            // If we got here, we have the lock and can proceed
             SwingUtilities.invokeLater(() -> {
-                UIHandler uiHandler = new UIHandler(APP_TITLE, lock, randomAccessFile, file);
+                UIHandler uiHandler = new UIHandler(lock, randomAccessFile, file);
                 uiHandler.createAndShowGUI();
             });
 
@@ -64,7 +70,6 @@ public class Main {
         if (hwnd != null) {
             user32.ShowWindow(hwnd, User32.SW_RESTORE);
             user32.SetForegroundWindow(hwnd);
-            // Play a system notification sound
             Toolkit.getDefaultToolkit().beep();
             log.info("Switched focus to existing PictureRenamer window.");
         } else {
