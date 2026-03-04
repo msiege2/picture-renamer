@@ -3,9 +3,11 @@ package com.mcs.camera;
 import javax.swing.*;
 import java.awt.*;
 import java.io.File;
+import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
+import java.util.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.sun.jna.platform.win32.User32;
@@ -14,7 +16,17 @@ import com.sun.jna.platform.win32.WinDef.HWND;
 public class Main {
     static final Logger log = LoggerFactory.getLogger(Main.class.getName());
     private static final String LOCK_FILE = System.getProperty("user.home") + File.separator + ".PictureRenamer.lock";
-    private static final String APP_TITLE = "Picture Renamer v3.1";
+    private static final String APP_TITLE = loadAppTitle();
+
+    private static String loadAppTitle() {
+        try (InputStream is = Main.class.getResourceAsStream("/app.properties")) {
+            Properties props = new Properties();
+            props.load(is);
+            return "Picture Renamer v" + props.getProperty("app.version", "?");
+        } catch (Exception e) {
+            return "Picture Renamer";
+        }
+    }
 
     public static void main(String[] args) {
         log.info("Starting " + APP_TITLE);

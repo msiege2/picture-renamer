@@ -8,7 +8,7 @@ import com.drew.metadata.file.FileSystemDirectory;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.filefilter.TrueFileFilter;
-import org.apache.commons.lang.RandomStringUtils;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,7 +17,10 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
-import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.*;
 
@@ -38,7 +41,7 @@ public class PictureRenumberer {
 	 */
 	private static final String DATETIME_FILENAME_REGEX = "(?m)(19|20)[0-9]{2}[- /.](0[1-9]|1[012])[- /.](0[1-9]|[12][0-9]|3[01]) [0-9]{2}\\\\.[0-9]{2}\\\\.[0-9]{2}";
 
-	SimpleDateFormat dateFormat;
+	DateTimeFormatter dateTimeFormatter;
 	String albumDirName = null;
 	List<String> temporaryNames = new ArrayList<>();
 	Map<String, File> fileMap = new HashMap<>();
@@ -60,17 +63,17 @@ public class PictureRenumberer {
 	}
 
 	public PictureRenumberer() {
-		this.dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+		this.dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 	}
 
-	public PictureRenumberer(SimpleDateFormat dateFormat) {
-		this.dateFormat = dateFormat;
+	public PictureRenumberer(DateTimeFormatter dateTimeFormatter) {
+		this.dateTimeFormatter = dateTimeFormatter;
 	}
 
 	private String getHomeDirPath() throws IllegalArgumentException {
 		String directory = "";
 		JFileChooser chooser = new JFileChooser();
-		chooser.setCurrentDirectory(new java.io.File("F:\\My Pictures"));
+		chooser.setCurrentDirectory(new java.io.File("F:\\My Pictures\\2025"));
 		chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
 		chooser.setApproveButtonText("Select");
 		if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
@@ -173,10 +176,13 @@ public class PictureRenumberer {
 			Metadata metadata = ImageMetadataReader.readMetadata(f);
 			Directory directory = metadata.getFirstDirectoryOfType(ExifSubIFDDirectory.class);
 
-			Date dateTaken = null;
+			LocalDateTime dateTaken = null;
 			// there is no metadata available
 			if (directory != null) {
-				dateTaken = directory.getDate(ExifSubIFDDirectory.TAG_DATETIME_ORIGINAL, TimeZone.getDefault());
+				Date date = directory.getDate(ExifSubIFDDirectory.TAG_DATETIME_ORIGINAL, TimeZone.getDefault());
+				if (date != null) {
+					dateTaken = date.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
+				}
 			} else {
 				if (TRY_FILENAME_DATETIME_ON_METADATA_FAIL) {
 					String fileName = f.getName();
@@ -184,8 +190,8 @@ public class PictureRenumberer {
 					try {
 						boolean foundMatch = fileName.matches(DATETIME_FILENAME_REGEX);
 						if (foundMatch) {
-							SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH.mm.ss");
-							dateTaken = sdf.parse(f.getName());
+							DateTimeFormatter sdf = DateTimeFormatter.ofPattern("yyyy-MM-dd HH.mm.ss");
+							dateTaken = LocalDateTime.parse(f.getName(), sdf);
 						}
 					} catch (Exception ex) {
 						log.warn("Could not parse timestamp from filename.", ex);
@@ -194,7 +200,7 @@ public class PictureRenumberer {
 				}
 				if (dateTaken == null && ALLOW_ALTERNATE_PARSING) {
 					String altDate = f.getName().replaceAll("-", "").substring(0, 11);
-					dateTaken = new Date(Long.parseLong(altDate));
+					dateTaken = Instant.ofEpochMilli(Long.parseLong(altDate)).atZone(ZoneId.systemDefault()).toLocalDateTime();
 				}
 				if (dateTaken == null) {
 					log.error("Error in image processing at file " + f.getName() + ".  Cannot continue.");
@@ -206,7 +212,10 @@ public class PictureRenumberer {
 				// fall back on file modification date
 				Directory backupDirectory = metadata.getFirstDirectoryOfType(FileSystemDirectory.class);
 				if (backupDirectory != null) {
-					dateTaken = backupDirectory.getDate(FileSystemDirectory.TAG_FILE_MODIFIED_DATE);
+					Date date = backupDirectory.getDate(FileSystemDirectory.TAG_FILE_MODIFIED_DATE);
+					if (date != null) {
+						dateTaken = date.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
+					}
 				}
 
 			}
@@ -214,13 +223,13 @@ public class PictureRenumberer {
 			String dateTakenStr = null;
 
 			if (dateTaken != null) {
-				dateTakenStr = dateFormat.format(dateTaken);
+				dateTakenStr = dateTaken.format(dateTimeFormatter);
 			}
 			if (dateTakenStr == null && !forceDate) {
 				try {
-					SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH.mm.ss");
-					Date filenameDate = sdf.parse(f.getName());
-					dateTakenStr = dateFormat.format(filenameDate);
+					DateTimeFormatter sdf = DateTimeFormatter.ofPattern("yyyy-MM-dd HH.mm.ss");
+					LocalDateTime filenameDate = LocalDateTime.parse(f.getName(), sdf);
+					dateTakenStr = filenameDate.format(dateTimeFormatter);
 				} catch (Exception e) {
 					dateTakenStr = null;
 				}
@@ -251,10 +260,13 @@ public class PictureRenumberer {
 			Metadata metadata = ImageMetadataReader.readMetadata(f);
 			Directory directory = metadata.getFirstDirectoryOfType(FileSystemDirectory.class);
 
-			Date dateTaken = null;
+			LocalDateTime dateTaken = null;
 			// there is no metadata available
 			if (directory != null) {
-				dateTaken = directory.getDate(FileSystemDirectory.TAG_FILE_MODIFIED_DATE, TimeZone.getDefault());
+				Date date = directory.getDate(FileSystemDirectory.TAG_FILE_MODIFIED_DATE, TimeZone.getDefault());
+				if (date != null) {
+					dateTaken = date.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
+				}
 			} else {
 				if (TRY_FILENAME_DATETIME_ON_METADATA_FAIL) {
 					String fileName = f.getName();
@@ -262,8 +274,8 @@ public class PictureRenumberer {
 					try {
 						boolean foundMatch = fileName.matches(DATETIME_FILENAME_REGEX);
 						if (foundMatch) {
-							SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH.mm.ss");
-							dateTaken = sdf.parse(f.getName());
+							DateTimeFormatter sdf = DateTimeFormatter.ofPattern("yyyy-MM-dd HH.mm.ss");
+							dateTaken = LocalDateTime.parse(f.getName(), sdf);
 						}
 					} catch (Exception ex) {
 						log.warn("Could not parse timestamp from filename.", ex);
@@ -272,7 +284,7 @@ public class PictureRenumberer {
 				}
 				if (dateTaken == null && ALLOW_ALTERNATE_PARSING) {
 					String altDate = f.getName().replaceAll("-", "").substring(0, 11);
-					dateTaken = new Date(Long.parseLong(altDate));
+					dateTaken = Instant.ofEpochMilli(Long.parseLong(altDate)).atZone(ZoneId.systemDefault()).toLocalDateTime();
 				}
 				if (dateTaken == null) {
 					log.error("Error in image processing at file " + f.getName() + ".  Cannot continue.");
@@ -284,7 +296,10 @@ public class PictureRenumberer {
 				// fall back on file modification date
 				Directory backupDirectory = metadata.getFirstDirectoryOfType(FileSystemDirectory.class);
 				if (backupDirectory != null) {
-					dateTaken = backupDirectory.getDate(FileSystemDirectory.TAG_FILE_MODIFIED_DATE);
+					Date date = backupDirectory.getDate(FileSystemDirectory.TAG_FILE_MODIFIED_DATE);
+					if (date != null) {
+						dateTaken = date.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
+					}
 				}
 
 			}
@@ -292,13 +307,13 @@ public class PictureRenumberer {
 			String dateTakenStr = null;
 
 			if (dateTaken != null) {
-				dateTakenStr = dateFormat.format(dateTaken);
+				dateTakenStr = dateTaken.format(dateTimeFormatter);
 			}
 			if (dateTakenStr == null && !forceDate) {
 				try {
-					SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH.mm.ss");
-					Date filenameDate = sdf.parse(f.getName());
-					dateTakenStr = dateFormat.format(filenameDate);
+					DateTimeFormatter sdf = DateTimeFormatter.ofPattern("yyyy-MM-dd HH.mm.ss");
+					LocalDateTime filenameDate = LocalDateTime.parse(f.getName(), sdf);
+					dateTakenStr = filenameDate.format(dateTimeFormatter);
 				} catch (Exception e) {
 					dateTakenStr = null;
 				}
@@ -326,22 +341,17 @@ public class PictureRenumberer {
 
 	private void grabMovieMetadata(File f, String prefix) {
 		try {
-			// Path p = Paths.get(f.getAbsolutePath());
-			// BasicFileAttributes view = Files.getFileAttributeView(p,
-			// BasicFileAttributeView.class).readAttributes();
-			// FileTime fileTime = view.creationTime();
-
-			Date dateTaken = new Date(f.lastModified());
+			LocalDateTime dateTaken = Instant.ofEpochMilli(f.lastModified()).atZone(ZoneId.systemDefault()).toLocalDateTime();
 			String dateTakenStr = null;
 
 			if (dateTaken != null) {
-				dateTakenStr = dateFormat.format(dateTaken);
+				dateTakenStr = dateTaken.format(dateTimeFormatter);
 			}
 			if (dateTakenStr == null && !forceDate) {
 				try {
-					SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH.mm.ss");
-					Date filenameDate = sdf.parse(f.getName());
-					dateTakenStr = dateFormat.format(filenameDate);
+					DateTimeFormatter sdf = DateTimeFormatter.ofPattern("yyyy-MM-dd HH.mm.ss");
+					LocalDateTime filenameDate = LocalDateTime.parse(f.getName(), sdf);
+					dateTakenStr = filenameDate.format(dateTimeFormatter);
 				} catch (Exception e) {
 					dateTakenStr = null;
 				}

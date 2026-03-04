@@ -6,16 +6,21 @@ import com.drew.metadata.Metadata;
 import com.drew.metadata.exif.ExifSubIFDDirectory;
 
 import java.io.File;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Date;
 import java.util.TimeZone;
 
 public class JpgMetadataExtractor implements MetadataExtractor {
     @Override
-    public Date extractDateTaken(File file) throws Exception {
+    public LocalDateTime extractDateTaken(File file) throws Exception {
         Metadata metadata = ImageMetadataReader.readMetadata(file);
         Directory directory = metadata.getFirstDirectoryOfType(ExifSubIFDDirectory.class);
         if (directory != null) {
-            return directory.getDate(ExifSubIFDDirectory.TAG_DATETIME_ORIGINAL, TimeZone.getDefault());
+            Date date = directory.getDate(ExifSubIFDDirectory.TAG_DATETIME_ORIGINAL, TimeZone.getDefault());
+            if (date != null) {
+                return date.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
+            }
         }
         return null;
     }
