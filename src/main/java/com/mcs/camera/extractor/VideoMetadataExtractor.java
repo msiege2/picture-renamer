@@ -1,11 +1,15 @@
 package com.mcs.camera.extractor;
 
 import java.io.File;
-import java.util.Date;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 public class VideoMetadataExtractor implements MetadataExtractor {
     @Override
-    public Date extractDateTaken(File file) throws Exception {
-        return new Date(file.lastModified());
+    public LocalDateTime extractDateTaken(File file) throws Exception {
+        return Instant.ofEpochMilli(file.lastModified())
+                .atZone(ZoneId.systemDefault())
+                .toLocalDateTime();
     }
 }

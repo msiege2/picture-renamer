@@ -3,7 +3,8 @@ package com.mcs.camera;
 import org.junit.Before;
 import org.junit.Test;
 import java.io.File;
-import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import static org.junit.Assert.*;
 
@@ -49,9 +50,9 @@ public class PictureRenamerTest {
 
     @Test
     public void testParseDateFromFilename() {
-        Date date = pictureRenamer.parseDateFromFilename("2021-08-15 12.30.45.jpg");
+        LocalDateTime date = pictureRenamer.parseDateFromFilename("2021-08-15 12.30.45.jpg");
         assertNotNull(date);
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH.mm.ss");
-        assertEquals("2021-08-15 12.30.45", sdf.format(date));
+        DateTimeFormatter sdf = DateTimeFormatter.ofPattern("yyyy-MM-dd HH.mm.ss");
+        assertEquals("2021-08-15 12.30.45", date.format(sdf));
     }
 }

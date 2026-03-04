@@ -3,9 +3,11 @@ package com.mcs.camera;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.RandomAccessFile;
 import java.nio.channels.FileLock;
@@ -35,6 +37,15 @@ public class UIHandler {
         this.lockFile = lockFile;
     }
 
+    private void resetFields() {
+        this.prefix="";
+        this.forceDate = "";
+        this.forceDateFlag = false;
+        this.includeVideos = true;
+        this.inlineVideos = true;
+        this.keepOrder = false;
+        this.tryFilenameDateTimeOnMetadataFail = true;
+    }
     public void createAndShowGUI() {
         try {
             UIManager.setLookAndFeel("com.sun.java.swing.plaf.windows.WindowsLookAndFeel");
@@ -46,6 +57,18 @@ public class UIHandler {
         mainFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         mainFrame.setSize(1, 1);  // Minimal size to ensure it's not visible
         mainFrame.setLocationRelativeTo(null);
+
+        // Set app icon for window and taskbar
+        try {
+            java.util.List<Image> icons = new java.util.ArrayList<>();
+            for (int size : new int[]{16, 32, 48, 256}) {
+                BufferedImage img = ImageIO.read(getClass().getResourceAsStream("/icon-" + size + ".png"));
+                if (img != null) icons.add(img);
+            }
+            if (!icons.isEmpty()) mainFrame.setIconImages(icons);
+        } catch (Exception e) {
+            log.warn("Could not load app icon", e);
+        }
 
         mainFrame.addWindowListener(new WindowAdapter() {
             @Override
@@ -82,6 +105,8 @@ public class UIHandler {
                     JOptionPane.YES_NO_OPTION);
             if (choice != JOptionPane.YES_OPTION) {
                 runAgain = false;
+            } else {
+                resetFields();
             }
         }
         // Exit the application when done
@@ -208,7 +233,7 @@ public class UIHandler {
 
             panel.add(optionsPanel);
 
-            int result = JOptionPane.showConfirmDialog(mainFrame, panel, "Picture Renamer v3.1: Please Provide Album Creator Details",
+            int result = JOptionPane.showConfirmDialog(mainFrame, panel, appTitle + ": Please Provide Album Creator Details",
                     JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
 
             if (result == JOptionPane.OK_OPTION) {

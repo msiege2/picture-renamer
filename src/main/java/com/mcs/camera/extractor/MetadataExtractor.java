@@ -1,8 +1,8 @@
 package com.mcs.camera.extractor;
 
 import java.io.File;
-import java.util.Date;
+import java.time.LocalDateTime;
 
 public interface MetadataExtractor {
-    Date extractDateTaken(File file) throws Exception;
+    LocalDateTime extractDateTaken(File file) throws Exception;
 }

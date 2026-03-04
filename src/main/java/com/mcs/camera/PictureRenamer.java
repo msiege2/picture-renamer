@@ -1,9 +1,6 @@
 package com.mcs.camera;
 
-import com.mcs.camera.extractor.JpgMetadataExtractor;
-import com.mcs.camera.extractor.MetadataExtractor;
-import com.mcs.camera.extractor.PngMetadataExtractor;
-import com.mcs.camera.extractor.VideoMetadataExtractor;
+import com.mcs.camera.extractor.*;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.filefilter.TrueFileFilter;
@@ -11,7 +8,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 public class PictureRenamer {
@@ -31,7 +31,7 @@ public class PictureRenamer {
 	private final boolean allowAlternateParsing = false;
 	private final String prefix;
 
-	SimpleDateFormat dateFormat;
+	DateTimeFormatter dateTimeFormatter;
 	String albumDirName = null;
 	String albumYear = null;
 	List<String> temporaryNames = new ArrayList<>();
@@ -46,7 +46,7 @@ public class PictureRenamer {
 		this.inlineVideos = albumDetails.isInlineVideos();
 		this.keepOrder = albumDetails.isKeepOrder();
 		this.tryFilenameDateTimeOnMetadataFail = albumDetails.isTryFilenameDateTimeOnMetadataFail();
-		this.dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+		this.dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 	}
 
 	public void renamePictures() {
@@ -74,6 +74,9 @@ public class PictureRenamer {
 				switch (fileExtension) {
 					case "jpg":
 						grabJpgMetadata(f);
+						break;
+					case "heic":
+						grabHeicMetadata(f);
 						break;
 					case "png":
 						grabPngMetadata(f);
@@ -166,7 +169,7 @@ public class PictureRenamer {
 	void grabJpgMetadata(File f) {
 		try {
 			MetadataExtractor extractor = new JpgMetadataExtractor();
-			Date dateTaken = extractor.extractDateTaken(f);
+			LocalDateTime dateTaken = extractor.extractDateTaken(f);
 
 			if (dateTaken == null) {
 				if (tryFilenameDateTimeOnMetadataFail) {
@@ -175,18 +178,57 @@ public class PictureRenamer {
 			}
 
 			if (dateTaken == null) {
-				dateTaken = new Date(f.lastModified());
+				dateTaken = Instant.ofEpochMilli(f.lastModified()).atZone(ZoneId.systemDefault()).toLocalDateTime();
 			}
 
 			if (dateTaken == null && forceDateFlag) {
-				dateTaken = dateFormat.parse(forceDate + " 00:00:00");
+				dateTaken = LocalDateTime.parse(forceDate + " 00:00:00", dateTimeFormatter);
 			}
 
 			if (dateTaken == null) {
 				throw new RuntimeException("Can't read date taken: " + f.getName());
 			}
 
-			String dateTakenStr = dateFormat.format(dateTaken);
+			String dateTakenStr = dateTaken.format(dateTimeFormatter);
+
+			if (albumDirName == null) {
+				albumDirName = (forceDateFlag ? forceDate : dateTakenStr.substring(0, 10)) + ", " + prefix;
+			}
+
+			String tempName = dateTakenStr + " " + f.getName();
+			log.debug("Date taken: " + f.getName() + " --> " + dateTakenStr);
+			temporaryNames.add(tempName);
+			fileMap.put(tempName, f);
+		} catch (Exception e) {
+			log.error("Error processing image file " + f.getName(), e);
+			System.exit(1);
+		}
+	}
+
+	void grabHeicMetadata(File f) {
+		try {
+			MetadataExtractor extractor = new HeicMetadataExtractor();
+			LocalDateTime dateTaken = extractor.extractDateTaken(f);
+
+			if (dateTaken == null) {
+				if (tryFilenameDateTimeOnMetadataFail) {
+					dateTaken = parseDateFromFilename(f.getName());
+				}
+			}
+
+			if (dateTaken == null) {
+				dateTaken = Instant.ofEpochMilli(f.lastModified()).atZone(ZoneId.systemDefault()).toLocalDateTime();
+			}
+
+			if (dateTaken == null && forceDateFlag) {
+				dateTaken = LocalDateTime.parse(forceDate + " 00:00:00", dateTimeFormatter);
+			}
+
+			if (dateTaken == null) {
+				throw new RuntimeException("Can't read date taken: " + f.getName());
+			}
+
+			String dateTakenStr = dateTaken.format(dateTimeFormatter);
 
 			if (albumDirName == null) {
 				albumDirName = (forceDateFlag ? forceDate : dateTakenStr.substring(0, 10)) + ", " + prefix;
@@ -205,7 +247,7 @@ public class PictureRenamer {
 	void grabPngMetadata(File f) {
 		try {
 			MetadataExtractor extractor = new PngMetadataExtractor();
-			Date dateTaken = extractor.extractDateTaken(f);
+			LocalDateTime dateTaken = extractor.extractDateTaken(f);
 
 			if (dateTaken == null) {
 				if (tryFilenameDateTimeOnMetadataFail) {
@@ -214,18 +256,18 @@ public class PictureRenamer {
 			}
 
 			if (dateTaken == null) {
-				dateTaken = new Date(f.lastModified());
+				dateTaken = Instant.ofEpochMilli(f.lastModified()).atZone(ZoneId.systemDefault()).toLocalDateTime();
 			}
 
 			if (dateTaken == null && forceDateFlag) {
-				dateTaken = dateFormat.parse(forceDate + " 00:00:00");
+				dateTaken = LocalDateTime.parse(forceDate + " 00:00:00", dateTimeFormatter);
 			}
 
 			if (dateTaken == null) {
 				throw new RuntimeException("Can't read date taken: " + f.getName());
 			}
 
-			String dateTakenStr = dateFormat.format(dateTaken);
+			String dateTakenStr = dateTaken.format(dateTimeFormatter);
 
 			if (albumDirName == null) {
 				albumDirName = (forceDateFlag ? forceDate : dateTakenStr.substring(0, 10)) + ", " + prefix;
@@ -244,17 +286,17 @@ public class PictureRenamer {
 	void grabMovieMetadata(File f) {
 		try {
 			MetadataExtractor extractor = new VideoMetadataExtractor();
-			Date dateTaken = extractor.extractDateTaken(f);
+			LocalDateTime dateTaken = extractor.extractDateTaken(f);
 
 			if (dateTaken == null && forceDateFlag) {
-				dateTaken = dateFormat.parse(forceDate + " 00:00:00");
+				dateTaken = LocalDateTime.parse(forceDate + " 00:00:00", dateTimeFormatter);
 			}
 
 			if (dateTaken == null) {
 				throw new RuntimeException("Can't read date taken: " + f.getName());
 			}
 
-			String dateTakenStr = dateFormat.format(dateTaken);
+			String dateTakenStr = dateTaken.format(dateTimeFormatter);
 
 			if (albumDirName == null) {
 				albumDirName = (forceDateFlag ? forceDate : dateTakenStr.substring(0, 10)) + ", " + prefix;
@@ -270,11 +312,11 @@ public class PictureRenamer {
 		}
 	}
 
-	Date parseDateFromFilename(String fileName) {
+	LocalDateTime parseDateFromFilename(String fileName) {
 		try {
 			fileName = fileName.substring(0, fileName.lastIndexOf('.'));
-			SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH.mm.ss");
-			return sdf.parse(fileName);
+			DateTimeFormatter sdf = DateTimeFormatter.ofPattern("yyyy-MM-dd HH.mm.ss");
+			return LocalDateTime.parse(fileName, sdf);
 		} catch (Exception e) {
 			log.warn("Could not parse date from filename: " + fileName);
 			return null;
