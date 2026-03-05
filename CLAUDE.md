@@ -51,7 +51,7 @@ src/main/resources/
 
 src/test/java/com/mcs/camera/
 ├── AlbumDetailsTest.java      # DTO construction test
-└── PictureRenamerTest.java    # Metadata extraction + filename parsing tests
+└── PictureRenamerTest.java    # Filename parsing, metadata extraction, file listing tests (TemporaryFolder-based)
 
 dist/
 ├── PictureRenamer.jar   # Deployable fat JAR (built by mvn package)
@@ -89,7 +89,7 @@ dist/
 
 **Metadata extraction:** `MetadataExtractor` interface with per-format implementations. Uses the `com.drew:metadata-extractor` library for EXIF reading. Note: JPG and HEIC extractors are currently identical; PNG uses file-modified date; Video uses `file.lastModified()`.
 
-**Date fallback chain** in `PictureRenamer`: EXIF metadata → parse from filename (`yyyy-MM-dd HH.mm.ss`) → file last-modified → forced date → error (`System.exit(1)`).
+**Date fallback chain** in `PictureRenamer.grabMetadata(File, MetadataExtractor)`: EXIF metadata → parse from filename (`yyyy-MM-dd HH.mm.ss`) → file last-modified → forced date → RuntimeException.
 
 ## Key Dependencies
 
@@ -109,7 +109,6 @@ dist/
 - Windows-only: uses JNA (`User32`) for window focus, Windows Look and Feel, and hardcoded Windows paths (`F:\My Pictures`, `H:\Picture Merge`)
 - Single-instance enforcement via file lock + JNA `FindWindow` (matches static title `"Picture Renamer"`)
 - `FilenameComparator` provides natural sort order (numeric-aware) used when `keepOrder` is enabled
-- Tests require a `test_resources/` directory with sample media files (not checked into git)
-- `System.exit(1)` in `PictureRenamer` catch blocks propagates into tests — test isolation concern
+- Tests use JUnit `TemporaryFolder` — no external test resources needed
 - `albumDirName` is derived from the first file processed; edge cases exist with `keepOrder` + no `forceDate`
 - Edit > Options... menu item is a disabled placeholder for future configurable settings

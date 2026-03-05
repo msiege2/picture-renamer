@@ -73,13 +73,13 @@ public class PictureRenamer {
 				String fileExtension = FilenameUtils.getExtension(f.getName()).toLowerCase();
 				switch (fileExtension) {
 					case "jpg":
-						grabJpgMetadata(f);
+						grabMetadata(f, new JpgMetadataExtractor());
 						break;
 					case "heic":
-						grabHeicMetadata(f);
+						grabMetadata(f, new HeicMetadataExtractor());
 						break;
 					case "png":
-						grabPngMetadata(f);
+						grabMetadata(f, new PngMetadataExtractor());
 						break;
 					case "mov":
 					case "avi":
@@ -87,7 +87,7 @@ public class PictureRenamer {
 					case "mp4":
 						if (includeVideos) {
 							if (inlineVideos) {
-								grabMovieMetadata(f);
+								grabMetadata(f, new VideoMetadataExtractor());
 							} else {
 								videos.add(f);
 							}
@@ -166,9 +166,8 @@ public class PictureRenamer {
 		return FileUtils.listFiles(homeDir, TrueFileFilter.INSTANCE, null);
 	}
 
-	void grabJpgMetadata(File f) {
+	void grabMetadata(File f, MetadataExtractor extractor) {
 		try {
-			MetadataExtractor extractor = new JpgMetadataExtractor();
 			LocalDateTime dateTaken = extractor.extractDateTaken(f);
 
 			if (dateTaken == null) {
@@ -200,115 +199,8 @@ public class PictureRenamer {
 			temporaryNames.add(tempName);
 			fileMap.put(tempName, f);
 		} catch (Exception e) {
-			log.error("Error processing image file " + f.getName(), e);
-			System.exit(1);
-		}
-	}
-
-	void grabHeicMetadata(File f) {
-		try {
-			MetadataExtractor extractor = new HeicMetadataExtractor();
-			LocalDateTime dateTaken = extractor.extractDateTaken(f);
-
-			if (dateTaken == null) {
-				if (tryFilenameDateTimeOnMetadataFail) {
-					dateTaken = parseDateFromFilename(f.getName());
-				}
-			}
-
-			if (dateTaken == null) {
-				dateTaken = Instant.ofEpochMilli(f.lastModified()).atZone(ZoneId.systemDefault()).toLocalDateTime();
-			}
-
-			if (dateTaken == null && forceDateFlag) {
-				dateTaken = LocalDateTime.parse(forceDate + " 00:00:00", dateTimeFormatter);
-			}
-
-			if (dateTaken == null) {
-				throw new RuntimeException("Can't read date taken: " + f.getName());
-			}
-
-			String dateTakenStr = dateTaken.format(dateTimeFormatter);
-
-			if (albumDirName == null) {
-				albumDirName = (forceDateFlag ? forceDate : dateTakenStr.substring(0, 10)) + ", " + prefix;
-			}
-
-			String tempName = dateTakenStr + " " + f.getName();
-			log.debug("Date taken: " + f.getName() + " --> " + dateTakenStr);
-			temporaryNames.add(tempName);
-			fileMap.put(tempName, f);
-		} catch (Exception e) {
-			log.error("Error processing image file " + f.getName(), e);
-			System.exit(1);
-		}
-	}
-
-	void grabPngMetadata(File f) {
-		try {
-			MetadataExtractor extractor = new PngMetadataExtractor();
-			LocalDateTime dateTaken = extractor.extractDateTaken(f);
-
-			if (dateTaken == null) {
-				if (tryFilenameDateTimeOnMetadataFail) {
-					dateTaken = parseDateFromFilename(f.getName());
-				}
-			}
-
-			if (dateTaken == null) {
-				dateTaken = Instant.ofEpochMilli(f.lastModified()).atZone(ZoneId.systemDefault()).toLocalDateTime();
-			}
-
-			if (dateTaken == null && forceDateFlag) {
-				dateTaken = LocalDateTime.parse(forceDate + " 00:00:00", dateTimeFormatter);
-			}
-
-			if (dateTaken == null) {
-				throw new RuntimeException("Can't read date taken: " + f.getName());
-			}
-
-			String dateTakenStr = dateTaken.format(dateTimeFormatter);
-
-			if (albumDirName == null) {
-				albumDirName = (forceDateFlag ? forceDate : dateTakenStr.substring(0, 10)) + ", " + prefix;
-			}
-
-			String tempName = dateTakenStr + " " + f.getName();
-			log.debug("Date taken: " + f.getName() + " --> " + dateTakenStr);
-			temporaryNames.add(tempName);
-			fileMap.put(tempName, f);
-		} catch (Exception e) {
-			log.error("Error processing PNG file " + f.getName(), e);
-			System.exit(1);
-		}
-	}
-
-	void grabMovieMetadata(File f) {
-		try {
-			MetadataExtractor extractor = new VideoMetadataExtractor();
-			LocalDateTime dateTaken = extractor.extractDateTaken(f);
-
-			if (dateTaken == null && forceDateFlag) {
-				dateTaken = LocalDateTime.parse(forceDate + " 00:00:00", dateTimeFormatter);
-			}
-
-			if (dateTaken == null) {
-				throw new RuntimeException("Can't read date taken: " + f.getName());
-			}
-
-			String dateTakenStr = dateTaken.format(dateTimeFormatter);
-
-			if (albumDirName == null) {
-				albumDirName = (forceDateFlag ? forceDate : dateTakenStr.substring(0, 10)) + ", " + prefix;
-			}
-
-			String tempName = dateTakenStr + " " + f.getName();
-			log.debug("Date taken: " + f.getName() + " --> " + dateTakenStr);
-			temporaryNames.add(tempName);
-			fileMap.put(tempName, f);
-		} catch (Exception e) {
-			log.error("Error processing video file " + f.getName(), e);
-			System.exit(1);
+			log.error("Error processing file " + f.getName(), e);
+			throw new RuntimeException("Failed to process file: " + f.getName(), e);
 		}
 	}
 
