@@ -207,4 +207,40 @@ public class PictureRenamerTest {
         assertNotNull(pictureRenamer.albumDirName);
         assertTrue(pictureRenamer.albumDirName.contains("TestAlbum"));
     }
+
+    @Test
+    public void testRollbackOnMoveFailure() throws IOException {
+        String src = tempFolder.getRoot().getAbsolutePath();
+        File destFolder = tempFolder.newFolder("dest");
+        String dest = destFolder.getAbsolutePath();
+        AlbumDetails details = new AlbumDetails(
+                "Trip", src, true, "2021-08-15",
+                true, true, false, true,
+                dest, 1, "%03d", " ");
+
+        File vid1 = tempFolder.newFile("clip1.mp4");
+        vid1.setLastModified(1629034245000L);
+
+        PictureRenamer renamer = new PictureRenamer(details);
+
+        // Pre-create the album dir, then put a directory with the same name as
+        // the file that will be moved — Files.move throws when target is a directory
+        File albumDir = new File(dest + File.separator + "2021" + File.separator + "2021-08-15, Trip");
+        albumDir.mkdirs();
+        File blocker = new File(albumDir, "Trip 001.mp4");
+        blocker.mkdir(); // a directory, not a file — will block the move
+
+        try {
+            renamer.renamePictures();
+            fail("Should have thrown RuntimeException");
+        } catch (RuntimeException e) {
+            assertTrue(e.getMessage().contains("File operation failed"));
+        }
+
+        // After rollback, original file should be back in source dir
+        File[] srcFiles = new File(src).listFiles(f -> !f.isDirectory());
+        assertNotNull(srcFiles);
+        assertEquals("Original file should be restored", 1, srcFiles.length);
+        assertEquals("clip1.mp4", srcFiles[0].getName());
+    }
 }
