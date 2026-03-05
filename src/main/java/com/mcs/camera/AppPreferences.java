@@ -10,8 +10,8 @@ public class AppPreferences {
     private static final String KEY_NUMBER_PADDING = "numberPadding";
     private static final String KEY_FILENAME_SEPARATOR = "filenameSeparator";
 
-    private static final String DEFAULT_PICTURE_LIBRARY_DIR = "F:\\My Pictures";
-    private static final String DEFAULT_DEFAULT_SOURCE_DIR = "H:\\Picture Merge";
+    private static final String DEFAULT_PICTURE_LIBRARY_DIR = "";
+    private static final String DEFAULT_DEFAULT_SOURCE_DIR = "";
     private static final int DEFAULT_COUNTER_START = 1;
     private static final int DEFAULT_NUMBER_PADDING = 3;
     private static final String DEFAULT_FILENAME_SEPARATOR = " ";
@@ -64,5 +64,9 @@ public class AppPreferences {
 
     public String getNumberFormat() {
         return "%0" + getNumberPadding() + "d";
+    }
+
+    public boolean isConfigured() {
+        return !getPictureLibraryDir().isEmpty() && !getDefaultSourceDir().isEmpty();
     }
 }
