@@ -138,7 +138,7 @@
                             <headerType>gui</headerType>
                             <outfile>${project.basedir}/dist/PictureRenamer.exe</outfile>
                             <jar>${project.basedir}/dist/PictureRenamer.jar</jar>
-                            <icon>${project.basedir}/dist/PictureRenamer.ico</icon>
+                            <icon>${project.basedir}/src/main/resources/PictureRenamer.ico</icon>
                             <classPath>
                                 <mainClass>com.mcs.camera.Main</mainClass>
                             </classPath>
