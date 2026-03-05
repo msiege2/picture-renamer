@@ -86,6 +86,22 @@ public class PictureRenamerTest {
     }
 
     @Test
+    public void testCustomNumberFormatAndSeparator() throws IOException {
+        AlbumDetails details = new AlbumDetails(
+                "Trip", tempFolder.getRoot().getAbsolutePath(), false, "",
+                false, false, false, true,
+                tempFolder.getRoot().getAbsolutePath(), 1, "%04d", "-");
+        PictureRenamer renamer = new PictureRenamer(details);
+
+        File videoFile = tempFolder.newFile("test.mp4");
+        videoFile.setLastModified(1629034245000L);
+        renamer.grabMetadata(videoFile, new VideoMetadataExtractor());
+
+        assertNotNull(renamer.albumDirName);
+        assertTrue(renamer.albumDirName.contains("Trip"));
+    }
+
+    @Test
     public void testAlbumDirNameSetFromFirstFile() throws IOException {
         File videoFile = tempFolder.newFile("test.mp4");
         // Set to a known date: 2021-08-15
