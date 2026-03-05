@@ -767,7 +767,6 @@ public class UIHandler {
             appPreferences.setNumberPadding(paddingCombo.getSelectedIndex() + 2);
             String[] separatorValues = {" ", "-", "_", ""};
             appPreferences.setFilenameSeparator(separatorValues[separatorCombo.getSelectedIndex()]);
-            sourceDirField.setText(appPreferences.getDefaultSourceDir());
             dialog.dispose();
         });
 
