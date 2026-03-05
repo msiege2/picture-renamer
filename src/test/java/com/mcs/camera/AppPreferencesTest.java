@@ -6,7 +6,7 @@ import org.junit.Test;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 
 public class AppPreferencesTest {
 
@@ -19,11 +19,28 @@ public class AppPreferencesTest {
     public void testDefaults() {
         AppPreferences prefs = new AppPreferences();
 
-        assertEquals("F:\\My Pictures", prefs.getPictureLibraryDir());
-        assertEquals("H:\\Picture Merge", prefs.getDefaultSourceDir());
+        assertEquals("", prefs.getPictureLibraryDir());
+        assertEquals("", prefs.getDefaultSourceDir());
         assertEquals(1, prefs.getCounterStart());
         assertEquals(3, prefs.getNumberPadding());
         assertEquals(" ", prefs.getFilenameSeparator());
+    }
+
+    @Test
+    public void testIsConfiguredFalseByDefault() {
+        AppPreferences prefs = new AppPreferences();
+        assertFalse(prefs.isConfigured());
+    }
+
+    @Test
+    public void testIsConfiguredRequiresBothPaths() {
+        AppPreferences prefs = new AppPreferences();
+
+        prefs.setPictureLibraryDir("C:\\Photos");
+        assertFalse(prefs.isConfigured());
+
+        prefs.setDefaultSourceDir("D:\\Import");
+        assertTrue(prefs.isConfigured());
     }
 
     @Test
