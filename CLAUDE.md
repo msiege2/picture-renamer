@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Picture Renamer is a Windows desktop application (Java Swing) that batch-renames photos and videos based on EXIF/metadata date-taken timestamps, then moves them into an organized album directory structure under `F:\My Pictures\{year}\{date}, {albumName}\`.
+Picture Renamer is a Windows desktop application (Java Swing) that batch-renames photos and videos based on EXIF/metadata date-taken timestamps, then moves them into an organized album directory structure under `F:\My Pictures\{year}\{date}, {albumName}\`. It also includes a built-in renumbering tool for re-sequencing files in existing albums.
 
-**Current version:** 3.2
+**Current version:** 4.0
 
 ## Build & Test
 
@@ -26,11 +26,11 @@ mvn test -Dtest=PictureRenamerTest#testParseDateFromFilename  # Run single test
 
 ```
 src/main/java/com/mcs/camera/
-├── Main.java                  # Entry point — singleton lock, JNA window focus
+├── Main.java                  # Entry point — singleton lock, JNA window focus, version loading
 ├── AlbumDetails.java          # Immutable DTO for user-specified album settings
 ├── PictureRenamer.java        # Core rename engine — metadata → sort → rename → move
-├── PictureRenumberer.java     # Standalone re-sequencing utility (has own main)
-├── UIHandler.java             # Swing UI — dialogs, options, confirmation
+├── PictureRenumberer.java     # Re-sequencing engine — metadata → sort → two-pass rename in place
+├── UIHandler.java             # Swing UI — tabbed frame, menu bar, SwingWorker processing
 ├── FilenameComparator.java    # Natural sort (numeric-aware) comparator
 └── extractor/
     ├── MetadataExtractor.java      # Interface: extractDateTaken(File) → LocalDateTime
@@ -58,16 +58,26 @@ dist/
 
 ## Architecture
 
-**Entry point:** `Main` — acquires a file-based singleton lock (`~/.PictureRenamer.lock`), uses JNA to focus an existing window if already running, then launches the Swing UI.
+**Entry point:** `Main` — acquires a file-based singleton lock (`~/.PictureRenamer.lock`), uses JNA to focus an existing window if already running, then launches the Swing UI. Exposes `getAppTitle()` (static `"Picture Renamer"`) and `getAppVersion()` (from `app.properties`).
 
-**Core flow:** `UIHandler` → collects `AlbumDetails` via Swing dialogs → passes to `PictureRenamer.renamePictures()` which:
+**UI:** `UIHandler` builds a real `JFrame` with:
+- **Menu bar:** File (Exit), Edit (Options... — disabled placeholder), Help (About)
+- **Tabbed pane:** "Rename" tab for the rename-and-move workflow, "Renumber" tab for in-place re-sequencing
+- **SwingWorker:** Both tabs run their processing off the EDT to keep the UI responsive
+- Form fields are persistent class members — no more JOptionPane-driven input loops
+
+**Rename flow** (via `PictureRenamer`):
 1. Reads all files from source directory
 2. Extracts date-taken metadata per file type using the `extractor` package
 3. Builds a sorted list of `"dateTaken fileName"` temporary keys for ordering
 4. Renames files sequentially as `{prefix} 001.{ext}`, `{prefix} 002.{ext}`, etc.
 5. Moves renamed files to `F:\My Pictures\{year}\{albumDirName}\`
 
-**`PictureRenumberer`** is a standalone utility (has its own `main`) for re-sequencing files in an existing album directory. It uses a two-pass rename (randomize then re-sequence) to avoid collisions. Contains hardcoded constants rather than UI-driven options.
+**Renumber flow** (via `PictureRenumberer`):
+1. Reads all files from an existing album directory
+2. Extracts metadata and sorts chronologically
+3. Two-pass rename: randomize all names first (avoid collisions), then re-sequence as `{prefix} 001.{ext}`, etc.
+4. Files stay in place — no move step
 
 **Metadata extraction:** `MetadataExtractor` interface with per-format implementations. Uses the `com.drew:metadata-extractor` library for EXIF reading. Note: JPG and HEIC extractors are currently identical; PNG uses file-modified date; Video uses `file.lastModified()`.
 
@@ -88,8 +98,9 @@ dist/
 ## Key Design Notes
 
 - Windows-only: uses JNA (`User32`) for window focus, Windows Look and Feel, and hardcoded Windows paths (`F:\My Pictures`, `H:\Picture Merge`)
-- Single-instance enforcement via file lock + JNA `FindWindow`
+- Single-instance enforcement via file lock + JNA `FindWindow` (matches static title `"Picture Renamer"`)
 - `FilenameComparator` provides natural sort order (numeric-aware) used when `keepOrder` is enabled
 - Tests require a `test_resources/` directory with sample media files (not checked into git)
-- `System.exit(1)` in production catch blocks propagates into tests — test isolation concern
+- `System.exit(1)` in `PictureRenamer` catch blocks propagates into tests — test isolation concern
 - `albumDirName` is derived from the first file processed; edge cases exist with `keepOrder` + no `forceDate`
+- Edit > Options... menu item is a disabled placeholder for future configurable settings
