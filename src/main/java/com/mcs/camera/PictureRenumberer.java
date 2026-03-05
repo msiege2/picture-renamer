@@ -8,7 +8,7 @@ import com.drew.metadata.file.FileSystemDirectory;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.filefilter.TrueFileFilter;
-import org.apache.commons.lang3.RandomStringUtils;
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -83,7 +83,7 @@ public class PictureRenumberer {
                 return;
             }
             File renamedFile = new File(origFile.getParent() + File.separator
-                    + RandomStringUtils.randomAlphanumeric(8) + "."
+                    + UUID.randomUUID() + "."
                     + FilenameUtils.getExtension(origFile.getName()).toLowerCase());
             origFile.renameTo(renamedFile);
             fileMap.put(orderedPicture, renamedFile);

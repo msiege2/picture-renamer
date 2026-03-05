@@ -72,19 +72,10 @@ public class PictureRenamer {
 			for (File f : filesInHomeDir) {
 				String fileExtension = FilenameUtils.getExtension(f.getName()).toLowerCase();
 				switch (fileExtension) {
-					case "jpg":
-						grabMetadata(f, new JpgMetadataExtractor());
-						break;
-					case "heic":
-						grabMetadata(f, new HeicMetadataExtractor());
-						break;
-					case "png":
-						grabMetadata(f, new PngMetadataExtractor());
-						break;
-					case "mov":
-					case "avi":
-					case "mkv":
-					case "mp4":
+					case "jpg", "jpeg" -> grabMetadata(f, new JpgMetadataExtractor());
+					case "heic" -> grabMetadata(f, new HeicMetadataExtractor());
+					case "png" -> grabMetadata(f, new PngMetadataExtractor());
+					case "mov", "avi", "mkv", "mp4" -> {
 						if (includeVideos) {
 							if (inlineVideos) {
 								grabMetadata(f, new VideoMetadataExtractor());
@@ -92,10 +83,8 @@ public class PictureRenamer {
 								videos.add(f);
 							}
 						}
-						break;
-					default:
-						log.warn("Ignoring unknown file type: " + f.getName());
-						break;
+					}
+					default -> log.warn("Ignoring unknown file type: " + f.getName());
 				}
 			}
 			Collections.sort(temporaryNames);
