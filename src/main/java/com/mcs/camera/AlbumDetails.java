@@ -9,10 +9,23 @@ public class AlbumDetails {
     private final boolean inlineVideos;
     private final boolean keepOrder;
     private final boolean tryFilenameDateTimeOnMetadataFail;
+    private final String destinationDir;
+    private final int counterStart;
+    private final String numberFormat;
+    private final String filenameSeparator;
 
     public AlbumDetails(String prefix, String sourceDir, boolean forceDateFlag, String forceDate,
                         boolean includeVideos, boolean inlineVideos, boolean keepOrder,
                         boolean tryFilenameDateTimeOnMetadataFail) {
+        this(prefix, sourceDir, forceDateFlag, forceDate, includeVideos, inlineVideos, keepOrder,
+                tryFilenameDateTimeOnMetadataFail, "F:\\My Pictures", 1, "%03d", " ");
+    }
+
+    public AlbumDetails(String prefix, String sourceDir, boolean forceDateFlag, String forceDate,
+                        boolean includeVideos, boolean inlineVideos, boolean keepOrder,
+                        boolean tryFilenameDateTimeOnMetadataFail,
+                        String destinationDir, int counterStart, String numberFormat,
+                        String filenameSeparator) {
         this.prefix = prefix;
         this.sourceDir = sourceDir;
         this.forceDateFlag = forceDateFlag;
@@ -21,6 +34,10 @@ public class AlbumDetails {
         this.inlineVideos = inlineVideos;
         this.keepOrder = keepOrder;
         this.tryFilenameDateTimeOnMetadataFail = tryFilenameDateTimeOnMetadataFail;
+        this.destinationDir = destinationDir;
+        this.counterStart = counterStart;
+        this.numberFormat = numberFormat;
+        this.filenameSeparator = filenameSeparator;
     }
 
     // Getters
@@ -32,4 +49,8 @@ public class AlbumDetails {
     public boolean isInlineVideos() { return inlineVideos; }
     public boolean isKeepOrder() { return keepOrder; }
     public boolean isTryFilenameDateTimeOnMetadataFail() { return tryFilenameDateTimeOnMetadataFail; }
+    public String getDestinationDir() { return destinationDir; }
+    public int getCounterStart() { return counterStart; }
+    public String getNumberFormat() { return numberFormat; }
+    public String getFilenameSeparator() { return filenameSeparator; }
 }

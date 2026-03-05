@@ -30,9 +30,10 @@ mvn test -Dtest=PictureRenamerTest#testParseDateFromFilename  # Run single test
 src/main/java/com/mcs/camera/
 ├── Main.java                  # Entry point — singleton lock, JNA window focus, version loading
 ├── AlbumDetails.java          # Immutable DTO for user-specified album settings
+├── AppPreferences.java        # Persistent user preferences via java.util.prefs.Preferences
 ├── PictureRenamer.java        # Core rename engine — metadata → sort → rename → move
 ├── PictureRenumberer.java     # Re-sequencing engine — metadata → sort → two-pass rename in place
-├── UIHandler.java             # Swing UI — tabbed frame, menu bar, SwingWorker processing
+├── UIHandler.java             # Swing UI — tabbed frame, menu bar, Options dialog, SwingWorker processing
 ├── FilenameComparator.java    # Natural sort (numeric-aware) comparator
 └── extractor/
     ├── MetadataExtractor.java      # Interface: extractDateTaken(File) → LocalDateTime
@@ -51,6 +52,7 @@ src/main/resources/
 
 src/test/java/com/mcs/camera/
 ├── AlbumDetailsTest.java      # DTO construction test
+├── AppPreferencesTest.java    # Preferences persistence and defaults tests
 └── PictureRenamerTest.java    # Filename parsing, metadata extraction, file listing tests (TemporaryFolder-based)
 
 dist/
@@ -69,7 +71,7 @@ dist/
 **Entry point:** `Main` — acquires a file-based singleton lock (`~/.PictureRenamer.lock`), uses JNA to focus an existing window if already running, then launches the Swing UI. Exposes `getAppTitle()` (static `"Picture Renamer"`) and `getAppVersion()` (from `app.properties`).
 
 **UI:** `UIHandler` builds a real `JFrame` with:
-- **Menu bar:** File (Exit), Edit (Options... — disabled placeholder), Help (About)
+- **Menu bar:** File (Exit), Edit (Options...), Help (About)
 - **Tabbed pane:** "Rename" tab for the rename-and-move workflow, "Renumber" tab for in-place re-sequencing
 - **SwingWorker:** Both tabs run their processing off the EDT to keep the UI responsive
 - Form fields are persistent class members — no more JOptionPane-driven input loops
@@ -107,9 +109,10 @@ dist/
 
 ## Key Design Notes
 
-- Windows-only: uses JNA (`User32`) for window focus, FlatLaf Light Look and Feel, and hardcoded Windows paths (`F:\My Pictures`, `H:\Picture Merge`)
+- Windows-only: uses JNA (`User32`) for window focus, FlatLaf Light Look and Feel
 - Single-instance enforcement via file lock + JNA `FindWindow` (matches static title `"Picture Renamer"`)
 - `FilenameComparator` provides natural sort order (numeric-aware) used when `keepOrder` is enabled
 - Tests use JUnit `TemporaryFolder` — no external test resources needed
 - `albumDirName` is derived from the first file processed; edge cases exist with `keepOrder` + no `forceDate`
-- Edit > Options... menu item is a disabled placeholder for future configurable settings
+- Edit > Options... persists settings via `java.util.prefs.Preferences` (Windows Registry): picture library dir, default source dir, counter start, number padding, filename separator
+- `AppPreferences` encapsulates all preferences access with typed getters and hardcoded defaults as fallbacks
