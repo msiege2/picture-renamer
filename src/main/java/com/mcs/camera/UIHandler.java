@@ -193,23 +193,10 @@ public class UIHandler {
 
         gbc.gridx = 1;
         gbc.weightx = 1.0;
-        JPanel sourceDirPanel = new JPanel(new BorderLayout());
         sourceDirField = new JTextField(appPreferences.getDefaultSourceDir(), 20);
-        JButton browseButton = new JButton("Browse");
-        sourceDirPanel.add(sourceDirField, BorderLayout.CENTER);
-        sourceDirPanel.add(browseButton, BorderLayout.EAST);
-        panel.add(sourceDirPanel, gbc);
-
-        browseButton.addActionListener(e -> {
-            JFileChooser chooser = new JFileChooser();
-            chooser.setCurrentDirectory(new File(sourceDirField.getText().trim()));
-            chooser.setDialogTitle("Select Source Directory");
-            chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
-            chooser.setAcceptAllFileFilterUsed(false);
-            if (chooser.showOpenDialog(mainFrame) == JFileChooser.APPROVE_OPTION) {
-                sourceDirField.setText(chooser.getSelectedFile().getAbsolutePath());
-            }
-        });
+        sourceDirField.setEditable(false);
+        sourceDirField.setToolTipText("Change via Edit > Options...");
+        panel.add(sourceDirField, gbc);
 
         return panel;
     }
@@ -524,7 +511,6 @@ public class UIHandler {
 
     private void setRenameFormEnabled(boolean enabled) {
         albumNameField.setEnabled(enabled);
-        sourceDirField.setEnabled(enabled);
         forceDateFlagCheckBox.setEnabled(enabled);
         forceDateField.setEnabled(enabled && forceDateFlagCheckBox.isSelected());
         forceDateLabel.setEnabled(enabled && forceDateFlagCheckBox.isSelected());
@@ -741,7 +727,12 @@ public class UIHandler {
         formPanel.add(new JLabel("Filename separator:"), gbc);
 
         gbc.gridx = 1;
-        String[] separatorLabels = {"Space", "Dash", "Underscore", "None"};
+        String[] separatorLabels = {
+            "Space  (Album 001.jpg)",
+            "Dash  (Album-001.jpg)",
+            "Underscore  (Album_001.jpg)",
+            "None  (Album001.jpg)"
+        };
         JComboBox<String> separatorCombo = new JComboBox<>(separatorLabels);
         String currentSep = appPreferences.getFilenameSeparator();
         switch (currentSep) {
@@ -767,6 +758,7 @@ public class UIHandler {
             appPreferences.setNumberPadding(paddingCombo.getSelectedIndex() + 2);
             String[] separatorValues = {" ", "-", "_", ""};
             appPreferences.setFilenameSeparator(separatorValues[separatorCombo.getSelectedIndex()]);
+            sourceDirField.setText(appPreferences.getDefaultSourceDir());
             dialog.dispose();
         });
 
