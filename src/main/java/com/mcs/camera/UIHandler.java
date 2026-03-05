@@ -411,6 +411,14 @@ public class UIHandler {
         boolean tryFilenameDateTimeOnMetadataFail = tryFilenameDateTimeCheckBox.isSelected();
 
         // Validation
+        if (!appPreferences.isConfigured()) {
+            JOptionPane.showMessageDialog(mainFrame,
+                    "Please configure your directories in Edit > Options... before processing.",
+                    "Options Required", JOptionPane.WARNING_MESSAGE);
+            showOptionsDialog();
+            return;
+        }
+
         if (prefix.isEmpty()) {
             JOptionPane.showMessageDialog(mainFrame, "Album name cannot be empty.", "Input Error",
                     JOptionPane.ERROR_MESSAGE);
@@ -545,6 +553,14 @@ public class UIHandler {
         boolean inlineVideos = renumberInlineVideosCheckBox.isSelected();
 
         // Validation
+        if (!appPreferences.isConfigured()) {
+            JOptionPane.showMessageDialog(mainFrame,
+                    "Please configure your directories in Edit > Options... before processing.",
+                    "Options Required", JOptionPane.WARNING_MESSAGE);
+            showOptionsDialog();
+            return;
+        }
+
         if (directory.isEmpty()) {
             JOptionPane.showMessageDialog(mainFrame, "Album directory cannot be empty.", "Input Error",
                     JOptionPane.ERROR_MESSAGE);
