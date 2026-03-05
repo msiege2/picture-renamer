@@ -46,13 +46,13 @@ Re-sequences files in an existing album directory. Useful when you need to reord
 
 ## Installation
 
-Download `PictureRenamer.jar` from the `dist/` directory and run it:
+Download `PictureRenamer.exe` from the `dist/` directory and double-click to run. Requires Java 17+ installed.
+
+Alternatively, run the JAR directly:
 
 ```
-java -jar PictureRenamer.jar
+java -jar dist/PictureRenamer.jar
 ```
-
-Or double-click the JAR if `.jar` files are associated with Java on your system.
 
 ## Building from Source
 
@@ -67,7 +67,7 @@ Or double-click the JAR if `.jar` files are associated with Java on your system.
 mvn package
 ```
 
-This produces a fat JAR with all dependencies bundled at `dist/PictureRenamer.jar`.
+This produces a fat JAR at `dist/PictureRenamer.jar` and a Windows exe wrapper at `dist/PictureRenamer.exe`.
 
 ### Run Tests
 
@@ -111,7 +111,7 @@ mvn test
 
 - **Language:** Java 17
 - **UI:** Swing with Windows Look and Feel
-- **Build:** Maven with shade plugin (fat JAR)
+- **Build:** Maven with shade plugin (fat JAR) + Launch4j (exe wrapper)
 - **EXIF:** [metadata-extractor](https://github.com/drewnoakes/metadata-extractor) by Drew Noakes
 - **Native:** [JNA](https://github.com/java-native-access/jna) for Win32 API calls
 - **Logging:** SLF4J + Logback
