@@ -614,7 +614,7 @@ public class UIHandler {
             @Override
             protected Void doInBackground() {
                 PictureRenumberer renumberer = new PictureRenumberer(directory, prefix,
-                        includeVideos, inlineVideos);
+                        includeVideos, inlineVideos, "%03d", " ");
                 renumberer.renumberPictures();
                 return null;
             }
