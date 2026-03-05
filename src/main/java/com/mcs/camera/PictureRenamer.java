@@ -30,6 +30,7 @@ public class PictureRenamer {
 	private final int counterStart;
 	private final String numberFormat;
 	private final String filenameSeparator;
+	private final FileOperationTracker trackerOverride;
 
 	DateTimeFormatter dateTimeFormatter;
 	String albumDirName = null;
@@ -38,6 +39,10 @@ public class PictureRenamer {
 	Map<String, File> fileMap = new HashMap<>();
 
 	public PictureRenamer(AlbumDetails albumDetails) {
+		this(albumDetails, null);
+	}
+
+	public PictureRenamer(AlbumDetails albumDetails, FileOperationTracker tracker) {
 		this.prefix = albumDetails.getPrefix();
 		this.sourceDir = albumDetails.getSourceDir();
 		this.forceDateFlag = albumDetails.isForceDateFlag();
@@ -51,6 +56,7 @@ public class PictureRenamer {
 		this.numberFormat = albumDetails.getNumberFormat();
 		this.filenameSeparator = albumDetails.getFilenameSeparator();
 		this.dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+		this.trackerOverride = tracker;
 	}
 
 	public void renamePictures() {
@@ -104,7 +110,7 @@ public class PictureRenamer {
 			}
 		}
 
-		FileOperationTracker tracker = new FileOperationTracker();
+		FileOperationTracker tracker = trackerOverride != null ? trackerOverride : new FileOperationTracker();
 		try {
 			for (String orderedPicture : temporaryNames) {
 				File origFile = fileMap.get(orderedPicture);
