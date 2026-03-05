@@ -133,3 +133,7 @@ mvn test
 - **Native:** [JNA](https://github.com/java-native-access/jna) for Win32 API calls
 - **Logging:** SLF4J + Logback
 - **CI:** GitHub Actions on push/PR to main
+
+## License
+
+[MIT](LICENSE)
