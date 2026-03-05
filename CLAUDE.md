@@ -13,14 +13,16 @@ Picture Renamer is a Windows desktop application (Java Swing) that batch-renames
 ```bash
 mvn compile           # Compile
 mvn test              # Run all tests (JUnit 4)
-mvn package           # Build fat JAR (output: dist/PictureRenamer.jar)
+mvn package           # Build fat JAR + exe (output: dist/PictureRenamer.jar, dist/PictureRenamer.exe)
 mvn test -Dtest=PictureRenamerTest#testParseDateFromFilename  # Run single test
 ```
 
 - Java 17 (Eclipse Adoptium), Maven build. No build wrapper checked in — requires system Maven.
 - `JAVA_HOME` must point to JDK 17 (JRE 8 may be first on PATH).
-- `mvn package` produces a shaded fat JAR via maven-shade-plugin, then copies it to `dist/PictureRenamer.jar` via antrun.
+- `mvn package` produces a shaded fat JAR via maven-shade-plugin, copies it to `dist/PictureRenamer.jar` via antrun, then wraps it into `dist/PictureRenamer.exe` via Launch4j.
 - `app.properties` is Maven-filtered to inject the version number at build time.
+- **CI:** GitHub Actions runs `mvn test` and `mvn package` on push/PR to `main` (`.github/workflows/build.yml`).
+- **Dependabot:** Automated weekly PRs for Maven and GitHub Actions dependency updates.
 
 ## Project Structure
 
@@ -53,7 +55,13 @@ src/test/java/com/mcs/camera/
 
 dist/
 ├── PictureRenamer.jar   # Deployable fat JAR (built by mvn package)
+├── PictureRenamer.exe   # Windows exe wrapper (built by mvn package via Launch4j)
 └── PictureRenamer.ico   # Windows icon for OS-level association
+
+.github/
+├── workflows/
+│   └── build.yml        # CI: build + test on push/PR to main
+└── dependabot.yml       # Automated dependency update PRs
 ```
 
 ## Architecture
@@ -94,6 +102,7 @@ dist/
 | `logback-classic` 1.5.32 | SLF4J logging |
 | `commons-cli` 1.11.0 | CLI parsing (declared but unused) |
 | `junit` 4.13.2 | Testing |
+| `launch4j-maven-plugin` 2.5.2 | Wraps fat JAR into Windows .exe |
 
 ## Key Design Notes
 
