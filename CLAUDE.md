@@ -99,6 +99,7 @@ dist/
 | `jna` + `jna-platform` 5.18.1 | Windows native calls (User32) |
 | `commons-io` 2.21.0 | File utilities |
 | `commons-lang3` 3.17.0 | String utilities (RandomStringUtils) |
+| `flatlaf` 3.6 | Modern Swing Look and Feel |
 | `logback-classic` 1.5.32 | SLF4J logging |
 | `commons-cli` 1.11.0 | CLI parsing (declared but unused) |
 | `junit` 4.13.2 | Testing |
@@ -106,7 +107,7 @@ dist/
 
 ## Key Design Notes
 
-- Windows-only: uses JNA (`User32`) for window focus, Windows Look and Feel, and hardcoded Windows paths (`F:\My Pictures`, `H:\Picture Merge`)
+- Windows-only: uses JNA (`User32`) for window focus, FlatLaf Light Look and Feel, and hardcoded Windows paths (`F:\My Pictures`, `H:\Picture Merge`)
 - Single-instance enforcement via file lock + JNA `FindWindow` (matches static title `"Picture Renamer"`)
 - `FilenameComparator` provides natural sort order (numeric-aware) used when `keepOrder` is enabled
 - Tests use JUnit `TemporaryFolder` — no external test resources needed

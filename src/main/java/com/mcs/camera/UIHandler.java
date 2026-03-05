@@ -52,7 +52,7 @@ public class UIHandler {
 
     public void createAndShowGUI() {
         try {
-            UIManager.setLookAndFeel("com.sun.java.swing.plaf.windows.WindowsLookAndFeel");
+            UIManager.setLookAndFeel(new com.formdev.flatlaf.FlatLightLaf());
         } catch (Exception e) {
             log.warn("Could not set Look and Feel", e);
         }
