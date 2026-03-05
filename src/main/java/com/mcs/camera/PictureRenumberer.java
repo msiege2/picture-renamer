@@ -13,6 +13,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -80,39 +82,46 @@ public class PictureRenumberer {
 
         int counter = 1;
 
-        // Pass 1: rename all to random names to avoid collisions
-        for (String orderedPicture : temporaryNames) {
-            File origFile = fileMap.get(orderedPicture);
-            if (!origFile.exists()) {
-                log.error("Prior to renaming -- cannot find file " + origFile.getName());
-                return;
+        FileOperationTracker tracker = new FileOperationTracker();
+        try {
+            // Pass 1: rename all to random names to avoid collisions
+            for (String orderedPicture : temporaryNames) {
+                File origFile = fileMap.get(orderedPicture);
+                if (!origFile.exists()) {
+                    log.error("Prior to renaming -- cannot find file " + origFile.getName());
+                    return;
+                }
+                File renamedFile = new File(origFile.getParent() + File.separator
+                        + UUID.randomUUID() + "."
+                        + FilenameUtils.getExtension(origFile.getName()).toLowerCase());
+                tracker.move(origFile.toPath(), renamedFile.toPath());
+                fileMap.put(orderedPicture, renamedFile);
             }
-            File renamedFile = new File(origFile.getParent() + File.separator
-                    + UUID.randomUUID() + "."
-                    + FilenameUtils.getExtension(origFile.getName()).toLowerCase());
-            origFile.renameTo(renamedFile);
-            fileMap.put(orderedPicture, renamedFile);
-        }
 
-        // Pass 2: rename to final sequential names
-        for (String orderedPicture : temporaryNames) {
-            File origFile = fileMap.get(orderedPicture);
-            String newFileName = origFile.getParent() + File.separator + prefix + filenameSeparator
-                    + String.format(numberFormat, counter) + "."
-                    + FilenameUtils.getExtension(origFile.getName()).toLowerCase();
-            origFile.renameTo(new File(newFileName));
-            counter++;
-        }
-
-        if (includeVideos && !inlineVideos) {
-            for (File f : videos) {
-                String extension = FilenameUtils.getExtension(f.getName()).toLowerCase();
-                String newFileName = f.getParent() + File.separator + prefix + filenameSeparator
-                        + String.format(numberFormat, counter) + "." + extension;
-                log.debug("Renaming video file " + f.getName() + " to " + newFileName);
-                f.renameTo(new File(newFileName));
+            // Pass 2: rename to final sequential names
+            for (String orderedPicture : temporaryNames) {
+                File origFile = fileMap.get(orderedPicture);
+                String newFileName = origFile.getParent() + File.separator + prefix + filenameSeparator
+                        + String.format(numberFormat, counter) + "."
+                        + FilenameUtils.getExtension(origFile.getName()).toLowerCase();
+                tracker.move(origFile.toPath(), Path.of(newFileName));
                 counter++;
             }
+
+            if (includeVideos && !inlineVideos) {
+                for (File f : videos) {
+                    String extension = FilenameUtils.getExtension(f.getName()).toLowerCase();
+                    String newFileName = f.getParent() + File.separator + prefix + filenameSeparator
+                            + String.format(numberFormat, counter) + "." + extension;
+                    log.debug("Renaming video file " + f.getName() + " to " + newFileName);
+                    tracker.move(f.toPath(), Path.of(newFileName));
+                    counter++;
+                }
+            }
+        } catch (IOException e) {
+            log.error("File operation failed, rolling back all changes", e);
+            tracker.rollback();
+            throw new RuntimeException("File operation failed: " + e.getMessage(), e);
         }
     }
 

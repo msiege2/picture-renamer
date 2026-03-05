@@ -8,6 +8,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -102,46 +104,53 @@ public class PictureRenamer {
 			}
 		}
 
-		for (String orderedPicture : temporaryNames) {
-			File origFile = fileMap.get(orderedPicture);
-			String newFileName;
-			if (prefix != null && !prefix.isEmpty()) {
-				newFileName = homeDirPath + File.separator + prefix + filenameSeparator
-						+ String.format(numberFormat, currentPictureCounter) + "."
-						+ FilenameUtils.getExtension(origFile.getName()).toLowerCase();
-			} else {
-				newFileName = homeDirPath + File.separator
-						+ orderedPicture.replaceAll("\\s", "_").replaceAll(":", "_");
-			}
-			origFile.renameTo(new File(newFileName));
-			currentPictureCounter++;
-		}
-
-		if (includeVideos && !inlineVideos) {
-			for (File f : videos) {
-				String extension = FilenameUtils.getExtension(f.getName()).toLowerCase();
-				String newFileName = homeDirPath + File.separator + prefix + filenameSeparator
-						+ String.format(numberFormat, currentPictureCounter) + "." + extension;
-				log.debug("Renaming video file " + f.getName() + " to " + newFileName);
-				f.renameTo(new File(newFileName));
+		FileOperationTracker tracker = new FileOperationTracker();
+		try {
+			for (String orderedPicture : temporaryNames) {
+				File origFile = fileMap.get(orderedPicture);
+				String newFileName;
+				if (prefix != null && !prefix.isEmpty()) {
+					newFileName = homeDirPath + File.separator + prefix + filenameSeparator
+							+ String.format(numberFormat, currentPictureCounter) + "."
+							+ FilenameUtils.getExtension(origFile.getName()).toLowerCase();
+				} else {
+					newFileName = homeDirPath + File.separator
+							+ orderedPicture.replaceAll("\\s", "_").replaceAll(":", "_");
+				}
+				tracker.move(origFile.toPath(), Path.of(newFileName));
 				currentPictureCounter++;
 			}
-		}
 
-		try {
-			albumYear = albumDirName.substring(0, 4);
-		} catch (Exception e) {
-			albumYear = null;
-			log.warn("Failed to parse year from album name.");
-		}
-		File dir = new File(destDirPath + File.separator + albumYear + File.separator + albumDirName);
-		if (!dir.exists()) {
-			dir.mkdirs();
-		}
-		filesInHomeDir = getFilesInDir(homeDirPath);
-		for (File f : filesInHomeDir) {
-			f.renameTo(new File(dir.getAbsolutePath() + File.separator + f.getName()));
-			log.debug("Moving file to: " + dir.getAbsolutePath() + File.separator + f.getName());
+			if (includeVideos && !inlineVideos) {
+				for (File f : videos) {
+					String extension = FilenameUtils.getExtension(f.getName()).toLowerCase();
+					String newFileName = homeDirPath + File.separator + prefix + filenameSeparator
+							+ String.format(numberFormat, currentPictureCounter) + "." + extension;
+					log.debug("Renaming video file " + f.getName() + " to " + newFileName);
+					tracker.move(f.toPath(), Path.of(newFileName));
+					currentPictureCounter++;
+				}
+			}
+
+			try {
+				albumYear = albumDirName.substring(0, 4);
+			} catch (Exception e) {
+				albumYear = null;
+				log.warn("Failed to parse year from album name.");
+			}
+			File dir = new File(destDirPath + File.separator + albumYear + File.separator + albumDirName);
+			if (!dir.exists()) {
+				dir.mkdirs();
+			}
+			filesInHomeDir = getFilesInDir(homeDirPath);
+			for (File f : filesInHomeDir) {
+				tracker.move(f.toPath(), Path.of(dir.getAbsolutePath() + File.separator + f.getName()));
+				log.debug("Moving file to: " + dir.getAbsolutePath() + File.separator + f.getName());
+			}
+		} catch (IOException e) {
+			log.error("File operation failed, rolling back all changes", e);
+			tracker.rollback();
+			throw new RuntimeException("File operation failed: " + e.getMessage(), e);
 		}
 	}
 
