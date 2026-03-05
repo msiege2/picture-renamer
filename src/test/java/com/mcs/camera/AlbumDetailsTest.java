@@ -1,34 +1,35 @@
 package com.mcs.camera;
 
-import org.junit.Test;
-import static org.junit.Assert.*;
+import org.junit.jupiter.api.Test;
 
-public class AlbumDetailsTest {
+import static org.assertj.core.api.Assertions.assertThat;
+
+class AlbumDetailsTest {
 
     @Test
-    public void testAlbumDetailsCreation() {
-        AlbumDetails albumDetails = new AlbumDetails("Vacation", "C:\\Photos", true, "2021-08-15",
+    void basicConstructorSetsAllFields() {
+        AlbumDetails details = new AlbumDetails("Vacation", "C:\\Photos", true, "2021-08-15",
                 true, false, false, true);
 
-        assertEquals("Vacation", albumDetails.getPrefix());
-        assertEquals("C:\\Photos", albumDetails.getSourceDir());
-        assertTrue(albumDetails.isForceDateFlag());
-        assertEquals("2021-08-15", albumDetails.getForceDate());
-        assertTrue(albumDetails.isIncludeVideos());
-        assertFalse(albumDetails.isInlineVideos());
-        assertFalse(albumDetails.isKeepOrder());
-        assertTrue(albumDetails.isTryFilenameDateTimeOnMetadataFail());
+        assertThat(details.getPrefix()).isEqualTo("Vacation");
+        assertThat(details.getSourceDir()).isEqualTo("C:\\Photos");
+        assertThat(details.isForceDateFlag()).isTrue();
+        assertThat(details.getForceDate()).isEqualTo("2021-08-15");
+        assertThat(details.isIncludeVideos()).isTrue();
+        assertThat(details.isInlineVideos()).isFalse();
+        assertThat(details.isKeepOrder()).isFalse();
+        assertThat(details.isTryFilenameDateTimeOnMetadataFail()).isTrue();
     }
 
     @Test
-    public void testAlbumDetailsWithOptionsFields() {
-        AlbumDetails albumDetails = new AlbumDetails("Vacation", "C:\\Photos", true, "2021-08-15",
+    void extendedConstructorSetsOptionsFields() {
+        AlbumDetails details = new AlbumDetails("Vacation", "C:\\Photos", true, "2021-08-15",
                 true, false, false, true,
                 "D:\\Library", 5, "%04d", "-");
 
-        assertEquals("D:\\Library", albumDetails.getDestinationDir());
-        assertEquals(5, albumDetails.getCounterStart());
-        assertEquals("%04d", albumDetails.getNumberFormat());
-        assertEquals("-", albumDetails.getFilenameSeparator());
+        assertThat(details.getDestinationDir()).isEqualTo("D:\\Library");
+        assertThat(details.getCounterStart()).isEqualTo(5);
+        assertThat(details.getNumberFormat()).isEqualTo("%04d");
+        assertThat(details.getFilenameSeparator()).isEqualTo("-");
     }
 }
