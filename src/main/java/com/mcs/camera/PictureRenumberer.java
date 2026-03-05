@@ -27,16 +27,21 @@ public class PictureRenumberer {
     private final String prefix;
     private final boolean includeVideos;
     private final boolean inlineVideos;
+    private final String numberFormat;
+    private final String filenameSeparator;
 
     DateTimeFormatter dateTimeFormatter;
     List<String> temporaryNames = new ArrayList<>();
     Map<String, File> fileMap = new HashMap<>();
 
-    public PictureRenumberer(String directory, String prefix, boolean includeVideos, boolean inlineVideos) {
+    public PictureRenumberer(String directory, String prefix, boolean includeVideos, boolean inlineVideos,
+                             String numberFormat, String filenameSeparator) {
         this.directory = directory;
         this.prefix = prefix;
         this.includeVideos = includeVideos;
         this.inlineVideos = inlineVideos;
+        this.numberFormat = numberFormat;
+        this.filenameSeparator = filenameSeparator;
         this.dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     }
 
@@ -92,8 +97,8 @@ public class PictureRenumberer {
         // Pass 2: rename to final sequential names
         for (String orderedPicture : temporaryNames) {
             File origFile = fileMap.get(orderedPicture);
-            String newFileName = origFile.getParent() + File.separator + prefix + " "
-                    + String.format("%03d", counter) + "."
+            String newFileName = origFile.getParent() + File.separator + prefix + filenameSeparator
+                    + String.format(numberFormat, counter) + "."
                     + FilenameUtils.getExtension(origFile.getName()).toLowerCase();
             origFile.renameTo(new File(newFileName));
             counter++;
@@ -102,8 +107,8 @@ public class PictureRenumberer {
         if (includeVideos && !inlineVideos) {
             for (File f : videos) {
                 String extension = FilenameUtils.getExtension(f.getName()).toLowerCase();
-                String newFileName = f.getParent() + File.separator + prefix + " "
-                        + String.format("%03d", counter) + "." + extension;
+                String newFileName = f.getParent() + File.separator + prefix + filenameSeparator
+                        + String.format(numberFormat, counter) + "." + extension;
                 log.debug("Renaming video file " + f.getName() + " to " + newFileName);
                 f.renameTo(new File(newFileName));
                 counter++;
