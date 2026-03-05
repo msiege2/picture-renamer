@@ -454,7 +454,8 @@ public class UIHandler {
             sourceDirField.requestFocusInWindow();
             return;
         }
-        if (srcDir.listFiles() == null || srcDir.listFiles().length == 0) {
+        File[] srcFiles = srcDir.listFiles();
+        if (srcFiles == null || srcFiles.length == 0) {
             JOptionPane.showMessageDialog(mainFrame, "Source directory is empty.", "Input Error",
                     JOptionPane.ERROR_MESSAGE);
             sourceDirField.requestFocusInWindow();
@@ -571,7 +572,8 @@ public class UIHandler {
             renumberDirField.requestFocusInWindow();
             return;
         }
-        if (dir.listFiles() == null || dir.listFiles().length == 0) {
+        File[] dirFiles = dir.listFiles();
+        if (dirFiles == null || dirFiles.length == 0) {
             JOptionPane.showMessageDialog(mainFrame, "Album directory is empty.", "Input Error",
                     JOptionPane.ERROR_MESSAGE);
             renumberDirField.requestFocusInWindow();
