@@ -18,7 +18,7 @@ public class AlbumDetails {
                         boolean includeVideos, boolean inlineVideos, boolean keepOrder,
                         boolean tryFilenameDateTimeOnMetadataFail) {
         this(prefix, sourceDir, forceDateFlag, forceDate, includeVideos, inlineVideos, keepOrder,
-                tryFilenameDateTimeOnMetadataFail, "F:\\My Pictures", 1, "%03d", " ");
+                tryFilenameDateTimeOnMetadataFail, "", 1, "%03d", " ");
     }
 
     public AlbumDetails(String prefix, String sourceDir, boolean forceDateFlag, String forceDate,
