@@ -40,9 +40,8 @@ public class UIHandler {
     private JButton renumberButton;
     private JButton renumberResetButton;
 
-    // Default values
-    private static final String DEFAULT_SOURCE_DIR = "H:\\Picture Merge";
-    private static final String DEFAULT_RENUMBER_BROWSE_DIR = "F:\\My Pictures";
+    // Preferences
+    private final AppPreferences appPreferences = new AppPreferences();
 
     public UIHandler(FileLock lock, RandomAccessFile randomAccessFile, File lockFile) {
         this.lock = lock;
@@ -112,7 +111,7 @@ public class UIHandler {
 
         JMenuItem optionsItem = new JMenuItem("Options...");
         optionsItem.setMnemonic(KeyEvent.VK_O);
-        optionsItem.setEnabled(false);
+        optionsItem.addActionListener(e -> showOptionsDialog());
         editMenu.add(optionsItem);
 
         // Help menu
@@ -195,7 +194,7 @@ public class UIHandler {
         gbc.gridx = 1;
         gbc.weightx = 1.0;
         JPanel sourceDirPanel = new JPanel(new BorderLayout());
-        sourceDirField = new JTextField(DEFAULT_SOURCE_DIR, 20);
+        sourceDirField = new JTextField(appPreferences.getDefaultSourceDir(), 20);
         JButton browseButton = new JButton("Browse");
         sourceDirPanel.add(sourceDirField, BorderLayout.CENTER);
         sourceDirPanel.add(browseButton, BorderLayout.EAST);
@@ -352,7 +351,7 @@ public class UIHandler {
 
         browseButton.addActionListener(e -> {
             JFileChooser chooser = new JFileChooser();
-            chooser.setCurrentDirectory(new File(DEFAULT_RENUMBER_BROWSE_DIR));
+            chooser.setCurrentDirectory(new File(appPreferences.getPictureLibraryDir()));
             chooser.setDialogTitle("Select Album Directory");
             chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
             chooser.setAcceptAllFileFilterUsed(false);
@@ -490,7 +489,9 @@ public class UIHandler {
         }
 
         AlbumDetails albumDetails = new AlbumDetails(prefix, sourceDir, forceDateFlag, forceDate,
-                includeVideos, inlineVideos, keepOrder, tryFilenameDateTimeOnMetadataFail);
+                includeVideos, inlineVideos, keepOrder, tryFilenameDateTimeOnMetadataFail,
+                appPreferences.getPictureLibraryDir(), appPreferences.getCounterStart(),
+                appPreferences.getNumberFormat(), appPreferences.getFilenameSeparator());
 
         setRenameFormEnabled(false);
 
@@ -537,7 +538,7 @@ public class UIHandler {
 
     private void resetRenameForm() {
         albumNameField.setText("");
-        sourceDirField.setText(DEFAULT_SOURCE_DIR);
+        sourceDirField.setText(appPreferences.getDefaultSourceDir());
         forceDateFlagCheckBox.setSelected(false);
         forceDateField.setText("");
         forceDateField.setEnabled(false);
@@ -614,7 +615,8 @@ public class UIHandler {
             @Override
             protected Void doInBackground() {
                 PictureRenumberer renumberer = new PictureRenumberer(directory, prefix,
-                        includeVideos, inlineVideos, "%03d", " ");
+                        includeVideos, inlineVideos,
+                        appPreferences.getNumberFormat(), appPreferences.getFilenameSeparator());
                 renumberer.renumberPictures();
                 return null;
             }
@@ -656,6 +658,129 @@ public class UIHandler {
     }
 
     // ── Dialogs ───────────────────────────────────────────────
+
+    private void showOptionsDialog() {
+        JDialog dialog = new JDialog(mainFrame, "Options", true);
+        dialog.setLayout(new BorderLayout());
+
+        JPanel formPanel = new JPanel(new GridBagLayout());
+        formPanel.setBorder(BorderFactory.createEmptyBorder(15, 15, 10, 15));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.WEST;
+
+        // Picture Library Directory
+        gbc.gridx = 0; gbc.gridy = 0; gbc.weightx = 0;
+        JLabel libDirLabel = new JLabel("Picture library:");
+        libDirLabel.setToolTipText("Home directory of your picture library. Used as the destination for renamed files and the default browse location for renumbering.");
+        formPanel.add(libDirLabel, gbc);
+
+        gbc.gridx = 1; gbc.weightx = 1.0;
+        JPanel libDirPanel = new JPanel(new BorderLayout());
+        JTextField libDirField = new JTextField(appPreferences.getPictureLibraryDir(), 30);
+        JButton libDirBrowse = new JButton("Browse");
+        libDirPanel.add(libDirField, BorderLayout.CENTER);
+        libDirPanel.add(libDirBrowse, BorderLayout.EAST);
+        formPanel.add(libDirPanel, gbc);
+
+        libDirBrowse.addActionListener(e -> {
+            JFileChooser chooser = new JFileChooser(libDirField.getText().trim());
+            chooser.setDialogTitle("Select Picture Library Directory");
+            chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+            chooser.setAcceptAllFileFilterUsed(false);
+            if (chooser.showOpenDialog(dialog) == JFileChooser.APPROVE_OPTION) {
+                libDirField.setText(chooser.getSelectedFile().getAbsolutePath());
+            }
+        });
+
+        // Default Source Directory
+        gbc.gridx = 0; gbc.gridy = 1; gbc.weightx = 0;
+        JLabel srcDirLabel = new JLabel("Default source directory:");
+        srcDirLabel.setToolTipText("Default directory to import photos from.");
+        formPanel.add(srcDirLabel, gbc);
+
+        gbc.gridx = 1; gbc.weightx = 1.0;
+        JPanel srcDirPanel = new JPanel(new BorderLayout());
+        JTextField srcDirField = new JTextField(appPreferences.getDefaultSourceDir(), 30);
+        JButton srcDirBrowse = new JButton("Browse");
+        srcDirPanel.add(srcDirField, BorderLayout.CENTER);
+        srcDirPanel.add(srcDirBrowse, BorderLayout.EAST);
+        formPanel.add(srcDirPanel, gbc);
+
+        srcDirBrowse.addActionListener(e -> {
+            JFileChooser chooser = new JFileChooser(srcDirField.getText().trim());
+            chooser.setDialogTitle("Select Default Source Directory");
+            chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+            chooser.setAcceptAllFileFilterUsed(false);
+            if (chooser.showOpenDialog(dialog) == JFileChooser.APPROVE_OPTION) {
+                srcDirField.setText(chooser.getSelectedFile().getAbsolutePath());
+            }
+        });
+
+        // Counter Start
+        gbc.gridx = 0; gbc.gridy = 2; gbc.weightx = 0;
+        formPanel.add(new JLabel("Counter start:"), gbc);
+
+        gbc.gridx = 1; gbc.weightx = 0;
+        JSpinner counterSpinner = new JSpinner(new SpinnerNumberModel(
+                appPreferences.getCounterStart(), 1, 999, 1));
+        formPanel.add(counterSpinner, gbc);
+
+        // Number Padding
+        gbc.gridx = 0; gbc.gridy = 3;
+        formPanel.add(new JLabel("Number padding:"), gbc);
+
+        gbc.gridx = 1;
+        JComboBox<String> paddingCombo = new JComboBox<>(new String[]{"2 digits", "3 digits", "4 digits"});
+        paddingCombo.setSelectedIndex(appPreferences.getNumberPadding() - 2);
+        formPanel.add(paddingCombo, gbc);
+
+        // Filename Separator
+        gbc.gridx = 0; gbc.gridy = 4;
+        formPanel.add(new JLabel("Filename separator:"), gbc);
+
+        gbc.gridx = 1;
+        String[] separatorLabels = {"Space", "Dash", "Underscore", "None"};
+        JComboBox<String> separatorCombo = new JComboBox<>(separatorLabels);
+        String currentSep = appPreferences.getFilenameSeparator();
+        switch (currentSep) {
+            case " " -> separatorCombo.setSelectedIndex(0);
+            case "-" -> separatorCombo.setSelectedIndex(1);
+            case "_" -> separatorCombo.setSelectedIndex(2);
+            case "" -> separatorCombo.setSelectedIndex(3);
+            default -> separatorCombo.setSelectedIndex(0);
+        }
+        formPanel.add(separatorCombo, gbc);
+
+        // Buttons
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JButton okButton = new JButton("OK");
+        JButton cancelButton = new JButton("Cancel");
+        buttonPanel.add(okButton);
+        buttonPanel.add(cancelButton);
+
+        okButton.addActionListener(e -> {
+            appPreferences.setPictureLibraryDir(libDirField.getText().trim());
+            appPreferences.setDefaultSourceDir(srcDirField.getText().trim());
+            appPreferences.setCounterStart((Integer) counterSpinner.getValue());
+            appPreferences.setNumberPadding(paddingCombo.getSelectedIndex() + 2);
+            String[] separatorValues = {" ", "-", "_", ""};
+            appPreferences.setFilenameSeparator(separatorValues[separatorCombo.getSelectedIndex()]);
+            sourceDirField.setText(appPreferences.getDefaultSourceDir());
+            dialog.dispose();
+        });
+
+        cancelButton.addActionListener(e -> dialog.dispose());
+
+        dialog.add(formPanel, BorderLayout.CENTER);
+        dialog.add(buttonPanel, BorderLayout.SOUTH);
+        dialog.getRootPane().setDefaultButton(okButton);
+        dialog.pack();
+        dialog.setResizable(false);
+        dialog.setLocationRelativeTo(mainFrame);
+        dialog.setVisible(true);
+    }
 
     private void showAboutDialog() {
         JPanel aboutPanel = new JPanel();
