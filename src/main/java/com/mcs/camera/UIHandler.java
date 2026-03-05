@@ -22,6 +22,7 @@ public class UIHandler {
     // ── Rename tab fields ──
     private JTextField albumNameField;
     private JTextField sourceDirField;
+    private JLabel renameFileCountLabel;
     private JCheckBox forceDateFlagCheckBox;
     private JTextField forceDateField;
     private JLabel forceDateLabel;
@@ -34,11 +35,15 @@ public class UIHandler {
 
     // ── Renumber tab fields ──
     private JTextField renumberDirField;
+    private JLabel renumberFileCountLabel;
     private JTextField renumberPrefixField;
     private JCheckBox renumberIncludeVideosCheckBox;
     private JCheckBox renumberInlineVideosCheckBox;
     private JButton renumberButton;
     private JButton renumberResetButton;
+
+    // Timer
+    private javax.swing.Timer fileCountTimer;
 
     // Preferences
     private final AppPreferences appPreferences = new AppPreferences();
@@ -85,6 +90,10 @@ public class UIHandler {
         mainFrame.setMinimumSize(mainFrame.getSize());
         mainFrame.setLocationRelativeTo(null);
         mainFrame.setVisible(true);
+
+        updateFileCounts();
+        fileCountTimer = new javax.swing.Timer(5000, e -> updateFileCounts());
+        fileCountTimer.start();
     }
 
     // ── Menu Bar ──────────────────────────────────────────────
@@ -197,6 +206,14 @@ public class UIHandler {
         sourceDirField.setEditable(false);
         sourceDirField.setToolTipText("Change via Edit > Options...");
         panel.add(sourceDirField, gbc);
+
+        // File count
+        gbc.gridx = 1;
+        gbc.gridy = 2;
+        renameFileCountLabel = new JLabel(" ");
+        renameFileCountLabel.setFont(new Font("Arial", Font.PLAIN, 11));
+        renameFileCountLabel.setForeground(new Color(0x66, 0x66, 0x66));
+        panel.add(renameFileCountLabel, gbc);
 
         return panel;
     }
@@ -336,6 +353,15 @@ public class UIHandler {
         renumberPrefixField = new JTextField(20);
         panel.add(renumberPrefixField, gbc);
 
+        // File count
+        gbc.gridx = 1;
+        gbc.gridy = 2;
+        gbc.weightx = 1.0;
+        renumberFileCountLabel = new JLabel(" ");
+        renumberFileCountLabel.setFont(new Font("Arial", Font.PLAIN, 11));
+        renumberFileCountLabel.setForeground(new Color(0x66, 0x66, 0x66));
+        panel.add(renumberFileCountLabel, gbc);
+
         browseButton.addActionListener(e -> {
             JFileChooser chooser = new JFileChooser();
             chooser.setCurrentDirectory(new File(appPreferences.getPictureLibraryDir()));
@@ -353,6 +379,7 @@ public class UIHandler {
                 } else {
                     renumberPrefixField.setText(dirName);
                 }
+                updateFileCounts();
             }
         });
 
@@ -448,7 +475,7 @@ public class UIHandler {
             sourceDirField.requestFocusInWindow();
             return;
         }
-        File[] srcFiles = srcDir.listFiles();
+        File[] srcFiles = srcDir.listFiles(File::isFile);
         if (srcFiles == null || srcFiles.length == 0) {
             JOptionPane.showMessageDialog(mainFrame, "Source directory is empty.", "Input Error",
                     JOptionPane.ERROR_MESSAGE);
@@ -463,6 +490,7 @@ public class UIHandler {
         msg.append("<table style='width: 100%; border-collapse: collapse;'>");
         msg.append(formatRow("Album Name", prefix));
         msg.append(formatRow("Source Directory", sourceDir));
+        msg.append(formatRow("Files Found", String.valueOf(srcFiles.length)));
         msg.append(formatRow("Force Date", forceDateFlag ? "Yes" : "No"));
         if (forceDateFlag) {
             msg.append(formatRow("Forced Date", forceDate));
@@ -489,6 +517,7 @@ public class UIHandler {
                 appPreferences.getNumberFormat(), appPreferences.getFilenameSeparator());
 
         setRenameFormEnabled(false);
+        fileCountTimer.stop();
 
         new SwingWorker<Void, Void>() {
             @Override
@@ -513,6 +542,8 @@ public class UIHandler {
                             JOptionPane.ERROR_MESSAGE);
                 }
                 setRenameFormEnabled(true);
+                updateFileCounts();
+                fileCountTimer.start();
             }
         }.execute();
     }
@@ -575,7 +606,7 @@ public class UIHandler {
             renumberDirField.requestFocusInWindow();
             return;
         }
-        File[] dirFiles = dir.listFiles();
+        File[] dirFiles = dir.listFiles(File::isFile);
         if (dirFiles == null || dirFiles.length == 0) {
             JOptionPane.showMessageDialog(mainFrame, "Album directory is empty.", "Input Error",
                     JOptionPane.ERROR_MESSAGE);
@@ -596,6 +627,7 @@ public class UIHandler {
         msg.append("<h2 style='color: #4a4a4a; font-size: 18px;'>Confirm Renumber</h2>");
         msg.append("<table style='width: 100%; border-collapse: collapse;'>");
         msg.append(formatRow("Album Directory", directory));
+        msg.append(formatRow("Files Found", String.valueOf(dirFiles.length)));
         msg.append(formatRow("Album Prefix", prefix));
         msg.append(formatRow("Include Videos", includeVideos ? "Yes" : "No"));
         msg.append(formatRow("Number Videos Inline", inlineVideos ? "Yes" : "No"));
@@ -612,6 +644,7 @@ public class UIHandler {
         }
 
         setRenumberFormEnabled(false);
+        fileCountTimer.stop();
 
         new SwingWorker<Void, Void>() {
             @Override
@@ -638,6 +671,8 @@ public class UIHandler {
                             JOptionPane.ERROR_MESSAGE);
                 }
                 setRenumberFormEnabled(true);
+                updateFileCounts();
+                fileCountTimer.start();
             }
         }.execute();
     }
@@ -775,6 +810,7 @@ public class UIHandler {
             String[] separatorValues = {" ", "-", "_", ""};
             appPreferences.setFilenameSeparator(separatorValues[separatorCombo.getSelectedIndex()]);
             sourceDirField.setText(appPreferences.getDefaultSourceDir());
+            updateFileCounts();
             dialog.dispose();
         });
 
@@ -824,7 +860,31 @@ public class UIHandler {
 
     // ── Helpers ───────────────────────────────────────────────
 
+    private void updateFileCounts() {
+        renameFileCountLabel.setText(getFileCountText(sourceDirField.getText().trim()));
+        renumberFileCountLabel.setText(getFileCountText(renumberDirField.getText().trim()));
+    }
+
+    private String getFileCountText(String path) {
+        if (path.isEmpty()) {
+            return " ";
+        }
+        File dir = new File(path);
+        if (!dir.isDirectory()) {
+            return " ";
+        }
+        File[] files = dir.listFiles(File::isFile);
+        if (files == null) {
+            return " ";
+        }
+        int count = files.length;
+        return count + (count == 1 ? " file found" : " files found");
+    }
+
     private void cleanup() {
+        if (fileCountTimer != null) {
+            fileCountTimer.stop();
+        }
         try {
             lock.release();
             randomAccessFile.close();
