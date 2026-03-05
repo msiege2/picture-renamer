@@ -1,17 +1,17 @@
 # Picture Renamer
 
-A Windows desktop application that batch-renames photos and videos by date taken, then organizes them into a clean album directory structure. Built with Java Swing.
+A Windows desktop application that batch-renames photos and videos by date taken, then organizes them into a clean album directory structure. Also includes a built-in renumbering tool for re-sequencing existing albums. Built with Java Swing.
 
 ## What It Does
 
-Picture Renamer takes a folder of unorganized camera files and:
+### Rename Mode
+
+Takes a folder of unorganized camera files and:
 
 1. **Reads metadata** — Extracts the date-taken timestamp from each file's EXIF data (JPG, HEIC, PNG) or filesystem metadata (videos)
 2. **Sorts chronologically** — Orders all files by when they were taken
 3. **Renames sequentially** — Gives each file a clean, numbered name: `Beach Trip 001.jpg`, `Beach Trip 002.jpg`, etc.
 4. **Organizes into albums** — Moves everything into `F:\My Pictures\{year}\{date}, {album name}\`
-
-### Before & After
 
 ```
 Source folder:                          Album folder:
@@ -22,8 +22,13 @@ Source folder:                          Album folder:
   VID_20240715.mp4
 ```
 
+### Renumber Mode
+
+Re-sequences files in an existing album directory. Useful when you need to reorder photos after adding or removing files. Uses a two-pass rename strategy (randomize then re-sequence) to avoid filename collisions. Files stay in place — no move step.
+
 ## Features
 
+- **Tabbed interface** — Switch between Rename and Renumber modes in a single window
 - **EXIF-aware sorting** — Photos are ordered by the actual moment they were captured, not by filename
 - **Multi-format support** — Handles JPG, HEIC, PNG, and common video formats (MP4, MOV, AVI, MTS, M2TS)
 - **Smart date fallback** — If EXIF is missing, falls back to parsing the filename, then file modified date
@@ -31,15 +36,7 @@ Source folder:                          Album folder:
 - **Keep order mode** — Skip metadata entirely and sort by filename (natural/numeric sort)
 - **Video handling options** — Include or exclude videos; number them inline with photos or append at the end
 - **Single-instance enforcement** — Only one copy of the app runs at a time; re-launching focuses the existing window
-- **Batch processing** — Process multiple albums in one session without restarting
-
-## Screenshots
-
-The app uses a dialog-driven workflow:
-
-1. Enter album details and options
-2. Review a confirmation summary
-3. Files are renamed and moved automatically
+- **Menu bar** — File (Exit), Edit (Options), Help (About with version info)
 
 ## Requirements
 
@@ -80,7 +77,7 @@ mvn test
 
 > **Note:** Some tests require a `test_resources/` directory containing sample media files (`test.jpg`, `test.png`, `test.mp4`). These are not included in the repository.
 
-## Configuration Options
+## Rename Options
 
 | Option | Description |
 |---|---|
@@ -92,6 +89,15 @@ mvn test
 | **Keep Order** | Sort by filename instead of metadata (uses natural/numeric sort) |
 | **Use Filename Date/Time** | Fall back to parsing `yyyy-MM-dd HH.mm.ss` from filenames when EXIF is missing |
 
+## Renumber Options
+
+| Option | Description |
+|---|---|
+| **Album Directory** | The existing album directory to re-sequence |
+| **Album Prefix** | Auto-extracted from directory name (editable); used for renamed files |
+| **Include Videos** | Whether to include video files in the renumbering |
+| **Number Videos Inline** | Sequence videos among photos by timestamp, or append them after all photos |
+
 ## Supported File Types
 
 | Type | Formats | Metadata Source |
@@ -100,18 +106,6 @@ mvn test
 | Photos | `.heic` | EXIF SubIFD (DateTimeOriginal) |
 | Photos | `.png` | File system modified date |
 | Videos | `.mp4`, `.mov`, `.avi`, `.mts`, `.m2ts` | File system modified date |
-
-## Utilities
-
-### PictureRenumberer
-
-A standalone utility for re-sequencing files in an existing album directory. Useful when you need to reorder photos after the initial rename. Run it directly:
-
-```bash
-java -cp PictureRenamer.jar com.mcs.camera.PictureRenumberer
-```
-
-It uses a two-pass rename strategy (randomize then re-sequence) to avoid filename collisions.
 
 ## Tech Stack
 
