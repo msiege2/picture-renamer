@@ -31,6 +31,7 @@ public class PictureRenumberer {
     private final boolean inlineVideos;
     private final String numberFormat;
     private final String filenameSeparator;
+    private final FileOperationTracker trackerOverride;
 
     DateTimeFormatter dateTimeFormatter;
     List<String> temporaryNames = new ArrayList<>();
@@ -38,6 +39,11 @@ public class PictureRenumberer {
 
     public PictureRenumberer(String directory, String prefix, boolean includeVideos, boolean inlineVideos,
                              String numberFormat, String filenameSeparator) {
+        this(directory, prefix, includeVideos, inlineVideos, numberFormat, filenameSeparator, null);
+    }
+
+    public PictureRenumberer(String directory, String prefix, boolean includeVideos, boolean inlineVideos,
+                             String numberFormat, String filenameSeparator, FileOperationTracker tracker) {
         this.directory = directory;
         this.prefix = prefix;
         this.includeVideos = includeVideos;
@@ -45,6 +51,7 @@ public class PictureRenumberer {
         this.numberFormat = numberFormat;
         this.filenameSeparator = filenameSeparator;
         this.dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        this.trackerOverride = tracker;
     }
 
     public void renumberPictures() {
@@ -82,7 +89,7 @@ public class PictureRenumberer {
 
         int counter = 1;
 
-        FileOperationTracker tracker = new FileOperationTracker();
+        FileOperationTracker tracker = trackerOverride != null ? trackerOverride : new FileOperationTracker();
         try {
             // Pass 1: rename all to random names to avoid collisions
             for (String orderedPicture : temporaryNames) {
