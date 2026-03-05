@@ -11,7 +11,7 @@ Takes a folder of unorganized camera files and:
 1. **Reads metadata** — Extracts the date-taken timestamp from each file's EXIF data (JPG, HEIC, PNG) or filesystem metadata (videos)
 2. **Sorts chronologically** — Orders all files by when they were taken
 3. **Renames sequentially** — Gives each file a clean, numbered name: `Beach Trip 001.jpg`, `Beach Trip 002.jpg`, etc.
-4. **Organizes into albums** — Moves everything into `F:\My Pictures\{year}\{date}, {album name}\`
+4. **Organizes into albums** — Moves everything into `{picture library}\{year}\{date}, {album name}\`
 
 ```
 Source folder:                          Album folder:
@@ -29,6 +29,7 @@ Re-sequences files in an existing album directory. Useful when you need to reord
 ## Features
 
 - **Tabbed interface** — Switch between Rename and Renumber modes in a single window
+- **Persistent options** — Configure picture library directory, default source directory, counter start, number padding, and filename separator via Edit > Options... (stored in Windows Registry)
 - **EXIF-aware sorting** — Photos are ordered by the actual moment they were captured, not by filename
 - **Multi-format support** — Handles JPG, HEIC, PNG, and common video formats (MP4, MOV, AVI, MTS, M2TS)
 - **Smart date fallback** — If EXIF is missing, falls back to parsing the filename, then file modified date
@@ -36,13 +37,19 @@ Re-sequences files in an existing album directory. Useful when you need to reord
 - **Keep order mode** — Skip metadata entirely and sort by filename (natural/numeric sort)
 - **Video handling options** — Include or exclude videos; number them inline with photos or append at the end
 - **Single-instance enforcement** — Only one copy of the app runs at a time; re-launching focuses the existing window
-- **Menu bar** — File (Exit), Edit (Options), Help (About with version info)
+- **Menu bar** — File (Exit), Edit (Options...), Help (About with version info)
 
 ## Requirements
 
-- **OS:** Windows (uses Windows-native APIs and hardcoded paths)
+- **OS:** Windows (uses Windows-native APIs)
 - **Runtime:** Java 17+
-- **Destination:** Files are moved to `F:\My Pictures\` — this path is currently hardcoded
+
+## First Run
+
+On first launch, you must configure your directories via **Edit > Options...** before processing:
+
+- **Picture library** — Home directory of your picture library (e.g., `F:\My Pictures`). Renamed files are moved here, and the Renumber tab browses here by default.
+- **Default source directory** — Where your camera/phone dumps files for import (e.g., `H:\Picture Merge`).
 
 ## Installation
 
@@ -75,21 +82,31 @@ This produces a fat JAR at `dist/PictureRenamer.jar` and a Windows exe wrapper a
 mvn test
 ```
 
-> **Note:** Some tests require a `test_resources/` directory containing sample media files (`test.jpg`, `test.png`, `test.mp4`). These are not included in the repository.
+## Options
 
-## Rename Options
+### Edit > Options...
+
+| Setting | Description | Default |
+|---|---|---|
+| **Picture library** | Home directory of your picture library — rename destination and renumber browse root | *(must be configured)* |
+| **Default source directory** | Default folder to import photos/videos from | *(must be configured)* |
+| **Counter start** | Starting number for file sequences | `1` |
+| **Number padding** | Number of digits (2, 3, or 4) for zero-padded file numbers | `3` |
+| **Filename separator** | Character between prefix and number: Space, Dash, Underscore, or None | `Space` |
+
+### Rename Options
 
 | Option | Description |
 |---|---|
 | **Album Name** | The prefix used for renamed files (e.g., "Beach Trip") |
-| **Source Directory** | Folder containing the photos/videos to process |
+| **Source Directory** | Folder containing the photos/videos to process (set via Options) |
 | **Force Date** | Override all file dates with a specific `YYYY-MM-DD` value |
 | **Include Videos** | Whether to process video files alongside photos |
 | **Number Videos Inline** | Sequence videos among photos by timestamp, or append them after all photos |
 | **Keep Order** | Sort by filename instead of metadata (uses natural/numeric sort) |
 | **Use Filename Date/Time** | Fall back to parsing `yyyy-MM-dd HH.mm.ss` from filenames when EXIF is missing |
 
-## Renumber Options
+### Renumber Options
 
 | Option | Description |
 |---|---|
@@ -110,12 +127,13 @@ mvn test
 ## Tech Stack
 
 - **Language:** Java 17
-- **UI:** Swing with Windows Look and Feel
+- **UI:** Swing with [FlatLaf](https://www.formdev.com/flatlaf/) Look and Feel
 - **Build:** Maven with shade plugin (fat JAR) + Launch4j (exe wrapper)
 - **EXIF:** [metadata-extractor](https://github.com/drewnoakes/metadata-extractor) by Drew Noakes
 - **Native:** [JNA](https://github.com/java-native-access/jna) for Win32 API calls
 - **Logging:** SLF4J + Logback
+- **CI:** GitHub Actions on push/PR to main
 
 ## License
 
-Private project — not licensed for redistribution.
+[MIT](LICENSE)
