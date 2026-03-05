@@ -19,4 +19,16 @@ public class AlbumDetailsTest {
         assertFalse(albumDetails.isKeepOrder());
         assertTrue(albumDetails.isTryFilenameDateTimeOnMetadataFail());
     }
+
+    @Test
+    public void testAlbumDetailsWithOptionsFields() {
+        AlbumDetails albumDetails = new AlbumDetails("Vacation", "C:\\Photos", true, "2021-08-15",
+                true, false, false, true,
+                "D:\\Library", 5, "%04d", "-");
+
+        assertEquals("D:\\Library", albumDetails.getDestinationDir());
+        assertEquals(5, albumDetails.getCounterStart());
+        assertEquals("%04d", albumDetails.getNumberFormat());
+        assertEquals("-", albumDetails.getFilenameSeparator());
+    }
 }
