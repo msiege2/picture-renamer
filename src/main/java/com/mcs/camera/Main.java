@@ -40,6 +40,11 @@ public class Main {
     public static void main(String[] args) {
         log.info("Starting {} v{}", APP_TITLE, APP_VERSION);
 
+        if (args.length > 0) {
+            System.exit(CliHandler.run(args));
+            return;
+        }
+
         try {
             File file = new File(LOCK_FILE);
             RandomAccessFile randomAccessFile = new RandomAccessFile(file, "rw");
