@@ -16,20 +16,18 @@ import java.util.*;
 
 public class PictureRenamer {
 	static final Logger log = LoggerFactory.getLogger(PictureRenamer.class.getName());
-	private static final String DEFAULT_DESTINATION_DIR = "F:\\My Pictures";
-	private static final boolean forceCounter = false;
-	private static final int counterStart = 1;
-
 	private final String sourceDir;
 	private final boolean forceDateFlag;
 	private final String forceDate;
 	private final boolean keepOrder;
-	private final boolean moveWhenFinished = true;
 	private final boolean includeVideos;
 	private final boolean inlineVideos;
 	private final boolean tryFilenameDateTimeOnMetadataFail;
-	private final boolean allowAlternateParsing = false;
 	private final String prefix;
+	private final String destinationDir;
+	private final int counterStart;
+	private final String numberFormat;
+	private final String filenameSeparator;
 
 	DateTimeFormatter dateTimeFormatter;
 	String albumDirName = null;
@@ -46,13 +44,17 @@ public class PictureRenamer {
 		this.inlineVideos = albumDetails.isInlineVideos();
 		this.keepOrder = albumDetails.isKeepOrder();
 		this.tryFilenameDateTimeOnMetadataFail = albumDetails.isTryFilenameDateTimeOnMetadataFail();
+		this.destinationDir = albumDetails.getDestinationDir();
+		this.counterStart = albumDetails.getCounterStart();
+		this.numberFormat = albumDetails.getNumberFormat();
+		this.filenameSeparator = albumDetails.getFilenameSeparator();
 		this.dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 	}
 
 	public void renamePictures() {
 		List<File> videos = new ArrayList<>();
 		String homeDirPath = sourceDir;
-		String destDirPath = DEFAULT_DESTINATION_DIR;
+		String destDirPath = destinationDir;
 		Collection<File> filesInHomeDir = getFilesInDir(homeDirPath);
 
 		if (filesInHomeDir.isEmpty()) {
@@ -90,7 +92,7 @@ public class PictureRenamer {
 			Collections.sort(temporaryNames);
 		}
 
-		int currentPictureCounter = forceCounter ? counterStart : getCurrentCounter();
+		int currentPictureCounter = counterStart;
 
 		for (String orderedPicture : temporaryNames) {
 			File origFile = fileMap.get(orderedPicture);
@@ -104,8 +106,8 @@ public class PictureRenamer {
 			File origFile = fileMap.get(orderedPicture);
 			String newFileName;
 			if (prefix != null && !prefix.isEmpty()) {
-				newFileName = homeDirPath + File.separator + prefix + " "
-						+ String.format("%03d", currentPictureCounter) + "."
+				newFileName = homeDirPath + File.separator + prefix + filenameSeparator
+						+ String.format(numberFormat, currentPictureCounter) + "."
 						+ FilenameUtils.getExtension(origFile.getName()).toLowerCase();
 			} else {
 				newFileName = homeDirPath + File.separator
@@ -118,35 +120,29 @@ public class PictureRenamer {
 		if (includeVideos && !inlineVideos) {
 			for (File f : videos) {
 				String extension = FilenameUtils.getExtension(f.getName()).toLowerCase();
-				String newFileName = homeDirPath + File.separator + prefix + " "
-						+ String.format("%03d", currentPictureCounter) + "." + extension;
+				String newFileName = homeDirPath + File.separator + prefix + filenameSeparator
+						+ String.format(numberFormat, currentPictureCounter) + "." + extension;
 				log.debug("Renaming video file " + f.getName() + " to " + newFileName);
 				f.renameTo(new File(newFileName));
 				currentPictureCounter++;
 			}
 		}
 
-		if (moveWhenFinished) {
-			try {
-				albumYear = albumDirName.substring(0, 4);
-			} catch (Exception e) {
-				albumYear = null;
-				log.warn("Failed to parse year from album name.");
-			}
-			File dir = new File(destDirPath + File.separator + albumYear + File.separator + albumDirName);
-			if (!dir.exists()) {
-				dir.mkdirs();
-			}
-			filesInHomeDir = getFilesInDir(homeDirPath);
-			for (File f : filesInHomeDir) {
-				f.renameTo(new File(dir.getAbsolutePath() + File.separator + f.getName()));
-				log.debug("Moving file to: " + dir.getAbsolutePath() + File.separator + f.getName());
-			}
+		try {
+			albumYear = albumDirName.substring(0, 4);
+		} catch (Exception e) {
+			albumYear = null;
+			log.warn("Failed to parse year from album name.");
 		}
-	}
-
-	private int getCurrentCounter() {
-		return 1;
+		File dir = new File(destDirPath + File.separator + albumYear + File.separator + albumDirName);
+		if (!dir.exists()) {
+			dir.mkdirs();
+		}
+		filesInHomeDir = getFilesInDir(homeDirPath);
+		for (File f : filesInHomeDir) {
+			f.renameTo(new File(dir.getAbsolutePath() + File.separator + f.getName()));
+			log.debug("Moving file to: " + dir.getAbsolutePath() + File.separator + f.getName());
+		}
 	}
 
 	Collection<File> getFilesInDir(String directoryPath) {
