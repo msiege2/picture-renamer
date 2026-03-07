@@ -187,6 +187,7 @@ mvn test
 - **EXIF:** [metadata-extractor](https://github.com/drewnoakes/metadata-extractor) by Drew Noakes
 - **Native:** [JNA](https://github.com/java-native-access/jna) for Win32 API calls
 - **Logging:** SLF4J + Logback
+- **Testing:** [JUnit 6](https://junit.org/) (Jupiter) + [Mockito](https://site.mockito.org/) + [AssertJ](https://assertj.github.io/doc/)
 - **CI:** GitHub Actions on push/PR to main
 
 ## License

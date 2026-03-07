@@ -12,9 +12,9 @@ Picture Renamer is a Windows desktop application (Java Swing + CLI) that batch-r
 
 ```bash
 mvn compile           # Compile
-mvn test              # Run all tests (JUnit 4)
+mvn test              # Run all tests (JUnit 6)
 mvn package           # Build fat JAR + exe (output: dist/PictureRenamer.jar, dist/PictureRenamer.exe)
-mvn test -Dtest=PictureRenamerTest#testParseDateFromFilename  # Run single test
+mvn test -Dtest=PictureRenamerTest#parsesDateFromValidFilename  # Run single test
 ```
 
 - Java 17 (Eclipse Adoptium), Maven build. No build wrapper checked in — requires system Maven.
@@ -117,7 +117,9 @@ dist/
 | `commons-cli` 1.11.0 | CLI argument parsing |
 | `flatlaf` 3.7 | Modern Swing Look and Feel |
 | `logback-classic` 1.5.32 | SLF4J logging |
-| `junit` 4.13.2 | Testing |
+| `junit-jupiter` 6.0.3 | Testing (JUnit 6 Jupiter) |
+| `mockito-core` 5.22.0 | Test mocking |
+| `assertj-core` 3.27.7 | Fluent test assertions |
 | `launch4j-maven-plugin` 2.7.0 | Wraps fat JAR into Windows .exe |
 
 ## Key Design Notes
@@ -125,7 +127,7 @@ dist/
 - Windows-only: uses JNA (`User32`) for window focus, FlatLaf Light Look and Feel
 - Single-instance enforcement via file lock + JNA `FindWindow` (matches static title `"Picture Renamer"`)
 - `FilenameComparator` provides natural sort order (numeric-aware) used when `keepOrder` is enabled
-- Tests use JUnit `TemporaryFolder` — no external test resources needed
+- Tests use JUnit 6 Jupiter with `@TempDir`, `@Nested`, `@ParameterizedTest`, Mockito, and AssertJ — no external test resources needed
 - `albumDirName` is derived from the first file processed; edge cases exist with `keepOrder` + no `forceDate`
 - Edit > Options... persists settings via `java.util.prefs.Preferences` (Windows Registry): picture library dir, default source dir, counter start, number padding, filename separator
 - `AppPreferences` encapsulates all preferences access with typed getters and hardcoded defaults as fallbacks
