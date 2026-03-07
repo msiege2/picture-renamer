@@ -1,33 +1,32 @@
 package com.mcs.camera;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
-import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
-public class PictureRenumbererDryRunTest {
+class PictureRenumbererDryRunTest {
 
-    @Rule
-    public TemporaryFolder tempFolder = new TemporaryFolder();
+    @TempDir
+    Path tempDir;
 
     @Test
-    public void testDryRunDoesNotRenameFiles() throws Exception {
-        File vid1 = tempFolder.newFile("clip1.mp4");
-        vid1.setLastModified(1629034245000L);
-        File vid2 = tempFolder.newFile("clip2.mp4");
-        vid2.setLastModified(1629034246000L);
+    void dryRunDoesNotRenameFiles() throws Exception {
+        Path vid1 = Files.createFile(tempDir.resolve("clip1.mp4"));
+        vid1.toFile().setLastModified(1629034245000L);
+        Path vid2 = Files.createFile(tempDir.resolve("clip2.mp4"));
+        vid2.toFile().setLastModified(1629034246000L);
 
         PictureRenumberer renumberer = new PictureRenumberer(
-                tempFolder.getRoot().getAbsolutePath(), "Album",
+                tempDir.toString(), "Album",
                 true, true, "%03d", " ",
                 new DryRunFileOperationTracker());
         renumberer.renumberPictures();
 
-        // Original files should still exist with original names
-        assertTrue("clip1.mp4 should still exist", vid1.exists());
-        assertTrue("clip2.mp4 should still exist", vid2.exists());
+        assertThat(vid1).exists();
+        assertThat(vid2).exists();
     }
 }
