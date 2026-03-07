@@ -1,36 +1,34 @@
 package com.mcs.camera;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
-public class PictureRenamerDryRunTest {
+class PictureRenamerDryRunTest {
 
-    @Rule
-    public TemporaryFolder tempFolder = new TemporaryFolder();
+    @TempDir
+    Path tempDir;
 
     @Test
-    public void testDryRunDoesNotMoveFiles() throws Exception {
-        String src = tempFolder.getRoot().getAbsolutePath();
-        String dest = tempFolder.newFolder("dest").getAbsolutePath();
+    void dryRunDoesNotMoveFiles() throws Exception {
+        Path dest = Files.createDirectory(tempDir.resolve("dest"));
         AlbumDetails details = new AlbumDetails(
-                "Vacation", src, true, "2021-08-15",
+                "Vacation", tempDir.toString(), true, "2021-08-15",
                 true, true, false, true,
-                dest, 1, "%03d", " ");
+                dest.toString(), 1, "%03d", " ");
 
-        File vid = tempFolder.newFile("clip.mp4");
-        vid.setLastModified(1629034245000L);
+        Path vid = Files.createFile(tempDir.resolve("clip.mp4"));
+        vid.toFile().setLastModified(1629034245000L);
 
         PictureRenamer renamer = new PictureRenamer(details, new DryRunFileOperationTracker());
         renamer.renamePictures();
 
-        // Source file should still be in source dir (not moved)
-        File[] srcFiles = new File(src).listFiles(f -> !f.isDirectory());
-        assertNotNull(srcFiles);
-        assertEquals("File should still be in source dir", 1, srcFiles.length);
+        File[] srcFiles = tempDir.toFile().listFiles(f -> !f.isDirectory());
+        assertThat(srcFiles).isNotNull().hasSize(1);
     }
 }

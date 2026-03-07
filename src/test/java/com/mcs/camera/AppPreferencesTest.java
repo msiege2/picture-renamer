@@ -1,50 +1,64 @@
 package com.mcs.camera;
 
-import org.junit.After;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
-public class AppPreferencesTest {
+class AppPreferencesTest {
 
-    @After
-    public void tearDown() throws BackingStoreException {
+    @AfterEach
+    void tearDown() throws BackingStoreException {
         Preferences.userNodeForPackage(AppPreferences.class).clear();
     }
 
-    @Test
-    public void testDefaults() {
-        AppPreferences prefs = new AppPreferences();
+    @Nested
+    @DisplayName("Defaults")
+    class Defaults {
 
-        assertEquals("", prefs.getPictureLibraryDir());
-        assertEquals("", prefs.getDefaultSourceDir());
-        assertEquals(1, prefs.getCounterStart());
-        assertEquals(3, prefs.getNumberPadding());
-        assertEquals(" ", prefs.getFilenameSeparator());
+        @Test
+        void defaultValuesAreEmpty() {
+            AppPreferences prefs = new AppPreferences();
+
+            assertThat(prefs.getPictureLibraryDir()).isEmpty();
+            assertThat(prefs.getDefaultSourceDir()).isEmpty();
+            assertThat(prefs.getCounterStart()).isEqualTo(1);
+            assertThat(prefs.getNumberPadding()).isEqualTo(3);
+            assertThat(prefs.getFilenameSeparator()).isEqualTo(" ");
+        }
+
+        @Test
+        void isNotConfiguredByDefault() {
+            AppPreferences prefs = new AppPreferences();
+            assertThat(prefs.isConfigured()).isFalse();
+        }
+    }
+
+    @Nested
+    @DisplayName("Configuration State")
+    class ConfigurationState {
+
+        @Test
+        void requiresBothPathsToBeConfigured() {
+            AppPreferences prefs = new AppPreferences();
+
+            prefs.setPictureLibraryDir("C:\\Photos");
+            assertThat(prefs.isConfigured()).isFalse();
+
+            prefs.setDefaultSourceDir("D:\\Import");
+            assertThat(prefs.isConfigured()).isTrue();
+        }
     }
 
     @Test
-    public void testIsConfiguredFalseByDefault() {
-        AppPreferences prefs = new AppPreferences();
-        assertFalse(prefs.isConfigured());
-    }
-
-    @Test
-    public void testIsConfiguredRequiresBothPaths() {
-        AppPreferences prefs = new AppPreferences();
-
-        prefs.setPictureLibraryDir("C:\\Photos");
-        assertFalse(prefs.isConfigured());
-
-        prefs.setDefaultSourceDir("D:\\Import");
-        assertTrue(prefs.isConfigured());
-    }
-
-    @Test
-    public void testSetAndGet() {
+    void setAndGetAllPreferences() {
         AppPreferences prefs = new AppPreferences();
 
         prefs.setPictureLibraryDir("C:\\Photos");
@@ -53,15 +67,15 @@ public class AppPreferencesTest {
         prefs.setNumberPadding(5);
         prefs.setFilenameSeparator("_");
 
-        assertEquals("C:\\Photos", prefs.getPictureLibraryDir());
-        assertEquals("D:\\Import", prefs.getDefaultSourceDir());
-        assertEquals(0, prefs.getCounterStart());
-        assertEquals(5, prefs.getNumberPadding());
-        assertEquals("_", prefs.getFilenameSeparator());
+        assertThat(prefs.getPictureLibraryDir()).isEqualTo("C:\\Photos");
+        assertThat(prefs.getDefaultSourceDir()).isEqualTo("D:\\Import");
+        assertThat(prefs.getCounterStart()).isZero();
+        assertThat(prefs.getNumberPadding()).isEqualTo(5);
+        assertThat(prefs.getFilenameSeparator()).isEqualTo("_");
     }
 
     @Test
-    public void testPersistenceAcrossInstances() {
+    void preferencesPersistAcrossInstances() {
         AppPreferences prefs1 = new AppPreferences();
         prefs1.setPictureLibraryDir("C:\\Photos");
         prefs1.setDefaultSourceDir("D:\\Import");
@@ -70,24 +84,22 @@ public class AppPreferencesTest {
         prefs1.setFilenameSeparator("-");
 
         AppPreferences prefs2 = new AppPreferences();
-        assertEquals("C:\\Photos", prefs2.getPictureLibraryDir());
-        assertEquals("D:\\Import", prefs2.getDefaultSourceDir());
-        assertEquals(10, prefs2.getCounterStart());
-        assertEquals(4, prefs2.getNumberPadding());
-        assertEquals("-", prefs2.getFilenameSeparator());
+        assertThat(prefs2.getPictureLibraryDir()).isEqualTo("C:\\Photos");
+        assertThat(prefs2.getDefaultSourceDir()).isEqualTo("D:\\Import");
+        assertThat(prefs2.getCounterStart()).isEqualTo(10);
+        assertThat(prefs2.getNumberPadding()).isEqualTo(4);
+        assertThat(prefs2.getFilenameSeparator()).isEqualTo("-");
     }
 
-    @Test
-    public void testGetNumberFormat() {
+    @ParameterizedTest
+    @CsvSource({
+            "2, %02d",
+            "3, %03d",
+            "4, %04d"
+    })
+    void numberFormatMatchesPadding(int padding, String expectedFormat) {
         AppPreferences prefs = new AppPreferences();
-
-        prefs.setNumberPadding(2);
-        assertEquals("%02d", prefs.getNumberFormat());
-
-        prefs.setNumberPadding(3);
-        assertEquals("%03d", prefs.getNumberFormat());
-
-        prefs.setNumberPadding(4);
-        assertEquals("%04d", prefs.getNumberFormat());
+        prefs.setNumberPadding(padding);
+        assertThat(prefs.getNumberFormat()).isEqualTo(expectedFormat);
     }
 }

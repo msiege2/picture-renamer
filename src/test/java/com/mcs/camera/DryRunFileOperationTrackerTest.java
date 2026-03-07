@@ -1,41 +1,41 @@
 package com.mcs.camera;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
-import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
-public class DryRunFileOperationTrackerTest {
+class DryRunFileOperationTrackerTest {
 
-    @Rule
-    public TemporaryFolder tempFolder = new TemporaryFolder();
+    @TempDir
+    Path tempDir;
 
     @Test
-    public void testMoveDoesNotMoveFile() throws Exception {
-        File source = tempFolder.newFile("source.jpg");
-        Path target = tempFolder.getRoot().toPath().resolve("target.jpg");
+    void moveDoesNotActuallyMoveFile() throws IOException {
+        Path source = Files.createFile(tempDir.resolve("source.jpg"));
+        Path target = tempDir.resolve("target.jpg");
 
         DryRunFileOperationTracker tracker = new DryRunFileOperationTracker();
-        tracker.move(source.toPath(), target);
+        tracker.move(source, target);
 
-        assertTrue("Source file should still exist", source.exists());
-        assertFalse("Target file should not exist", target.toFile().exists());
-        assertEquals(1, tracker.completedCount());
+        assertThat(source).exists();
+        assertThat(target).doesNotExist();
+        assertThat(tracker.completedCount()).isEqualTo(1);
     }
 
     @Test
-    public void testRollbackIsNoOp() throws Exception {
-        File source = tempFolder.newFile("source.jpg");
-        Path target = tempFolder.getRoot().toPath().resolve("target.jpg");
+    void rollbackIsNoOp() throws IOException {
+        Path source = Files.createFile(tempDir.resolve("source.jpg"));
+        Path target = tempDir.resolve("target.jpg");
 
         DryRunFileOperationTracker tracker = new DryRunFileOperationTracker();
-        tracker.move(source.toPath(), target);
-        tracker.rollback(); // should not throw
+        tracker.move(source, target);
+        tracker.rollback();
 
-        assertTrue("Source file should still exist", source.exists());
+        assertThat(source).exists();
     }
 }
