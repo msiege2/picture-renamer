@@ -1,118 +1,123 @@
 package com.mcs.camera;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-public class FileOperationTrackerTest {
+class FileOperationTrackerTest {
 
-    @Rule
-    public TemporaryFolder tempFolder = new TemporaryFolder();
+    @TempDir
+    Path tempDir;
 
-    @Test
-    public void testMoveRenamesFile() throws IOException {
-        File src = tempFolder.newFile("original.txt");
-        Path target = tempFolder.getRoot().toPath().resolve("renamed.txt");
+    @Nested
+    @DisplayName("Move Operations")
+    class MoveOperations {
 
-        FileOperationTracker tracker = new FileOperationTracker();
-        tracker.move(src.toPath(), target);
+        @Test
+        void movesFileToTarget() throws IOException {
+            Path source = Files.createFile(tempDir.resolve("original.txt"));
+            Path target = tempDir.resolve("renamed.txt");
 
-        assertFalse("Source should not exist", src.exists());
-        assertTrue("Target should exist", Files.exists(target));
-        assertEquals(1, tracker.completedCount());
-    }
+            FileOperationTracker tracker = new FileOperationTracker();
+            tracker.move(source, target);
 
-    @Test
-    public void testMoveThrowsOnNonexistentSource() {
-        Path src = tempFolder.getRoot().toPath().resolve("nonexistent.txt");
-        Path target = tempFolder.getRoot().toPath().resolve("target.txt");
+            assertThat(source).doesNotExist();
+            assertThat(target).exists();
+            assertThat(tracker.completedCount()).isEqualTo(1);
+        }
 
-        FileOperationTracker tracker = new FileOperationTracker();
-        try {
-            tracker.move(src, target);
-            fail("Should have thrown IOException");
-        } catch (IOException e) {
-            assertEquals(0, tracker.completedCount());
+        @Test
+        void throwsOnNonexistentSource() {
+            Path source = tempDir.resolve("nonexistent.txt");
+            Path target = tempDir.resolve("target.txt");
+
+            FileOperationTracker tracker = new FileOperationTracker();
+
+            assertThatThrownBy(() -> tracker.move(source, target))
+                    .isInstanceOf(IOException.class);
+            assertThat(tracker.completedCount()).isZero();
+        }
+
+        @Test
+        void completedCountStartsAtZero() {
+            FileOperationTracker tracker = new FileOperationTracker();
+            assertThat(tracker.completedCount()).isZero();
         }
     }
 
-    @Test
-    public void testRollbackReversesSingleMove() throws IOException {
-        File src = tempFolder.newFile("original.txt");
-        Path srcPath = src.toPath();
-        Path target = tempFolder.getRoot().toPath().resolve("renamed.txt");
+    @Nested
+    @DisplayName("Rollback")
+    class Rollback {
 
-        FileOperationTracker tracker = new FileOperationTracker();
-        tracker.move(srcPath, target);
+        @Test
+        void reversesSingleMove() throws IOException {
+            Path source = Files.createFile(tempDir.resolve("original.txt"));
+            Path target = tempDir.resolve("renamed.txt");
 
-        assertFalse(Files.exists(srcPath));
-        assertTrue(Files.exists(target));
+            FileOperationTracker tracker = new FileOperationTracker();
+            tracker.move(source, target);
 
-        tracker.rollback();
+            assertThat(source).doesNotExist();
+            assertThat(target).exists();
 
-        assertTrue("Source should be restored", Files.exists(srcPath));
-        assertFalse("Target should be gone", Files.exists(target));
-    }
+            tracker.rollback();
 
-    @Test
-    public void testRollbackReversesMultipleMovesInOrder() throws IOException {
-        File file1 = tempFolder.newFile("file1.txt");
-        File file2 = tempFolder.newFile("file2.txt");
-        Path target1 = tempFolder.getRoot().toPath().resolve("moved1.txt");
-        Path target2 = tempFolder.getRoot().toPath().resolve("moved2.txt");
+            assertThat(source).exists();
+            assertThat(target).doesNotExist();
+        }
 
-        FileOperationTracker tracker = new FileOperationTracker();
-        tracker.move(file1.toPath(), target1);
-        tracker.move(file2.toPath(), target2);
+        @Test
+        void reversesMultipleMovesInOrder() throws IOException {
+            Path file1 = Files.createFile(tempDir.resolve("file1.txt"));
+            Path file2 = Files.createFile(tempDir.resolve("file2.txt"));
+            Path target1 = tempDir.resolve("moved1.txt");
+            Path target2 = tempDir.resolve("moved2.txt");
 
-        assertEquals(2, tracker.completedCount());
+            FileOperationTracker tracker = new FileOperationTracker();
+            tracker.move(file1, target1);
+            tracker.move(file2, target2);
 
-        tracker.rollback();
+            assertThat(tracker.completedCount()).isEqualTo(2);
 
-        assertTrue("file1 should be restored", file1.exists());
-        assertTrue("file2 should be restored", file2.exists());
-        assertFalse("target1 should be gone", Files.exists(target1));
-        assertFalse("target2 should be gone", Files.exists(target2));
-    }
+            tracker.rollback();
 
-    @Test
-    public void testRollbackIsBestEffort() throws IOException {
-        File file1 = tempFolder.newFile("file1.txt");
-        File file2 = tempFolder.newFile("file2.txt");
-        Path target1 = tempFolder.getRoot().toPath().resolve("moved1.txt");
-        Path target2 = tempFolder.getRoot().toPath().resolve("moved2.txt");
+            assertThat(file1).exists();
+            assertThat(file2).exists();
+            assertThat(target1).doesNotExist();
+            assertThat(target2).doesNotExist();
+        }
 
-        FileOperationTracker tracker = new FileOperationTracker();
-        tracker.move(file1.toPath(), target1);
-        tracker.move(file2.toPath(), target2);
+        @Test
+        void isBestEffortWhenSomeMovesCantBeReversed() throws IOException {
+            Path file1 = Files.createFile(tempDir.resolve("file1.txt"));
+            Path file2 = Files.createFile(tempDir.resolve("file2.txt"));
+            Path target1 = tempDir.resolve("moved1.txt");
+            Path target2 = tempDir.resolve("moved2.txt");
 
-        // Delete target1 so its rollback will fail
-        Files.delete(target1);
+            FileOperationTracker tracker = new FileOperationTracker();
+            tracker.move(file1, target1);
+            tracker.move(file2, target2);
 
-        // Should not throw — rollback is best-effort
-        tracker.rollback();
+            Files.delete(target1); // make rollback of first move impossible
 
-        // file2 should still be restored even though file1 rollback failed
-        assertTrue("file2 should be restored", file2.exists());
-    }
+            tracker.rollback(); // should not throw
 
-    @Test
-    public void testCompletedCountStartsAtZero() {
-        FileOperationTracker tracker = new FileOperationTracker();
-        assertEquals(0, tracker.completedCount());
-    }
+            assertThat(file2).exists();
+        }
 
-    @Test
-    public void testRollbackOnEmptyTrackerDoesNothing() {
-        FileOperationTracker tracker = new FileOperationTracker();
-        tracker.rollback(); // should not throw
-        assertEquals(0, tracker.completedCount());
+        @Test
+        void onEmptyTrackerDoesNothing() {
+            FileOperationTracker tracker = new FileOperationTracker();
+            tracker.rollback();
+            assertThat(tracker.completedCount()).isZero();
+        }
     }
 }
