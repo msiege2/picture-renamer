@@ -2,245 +2,257 @@ package com.mcs.camera;
 
 import com.mcs.camera.extractor.MetadataExtractor;
 import com.mcs.camera.extractor.VideoMetadataExtractor;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.mockito.Mockito;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
 import java.util.Collection;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 
-public class PictureRenamerTest {
+class PictureRenamerTest {
+
+    @TempDir
+    Path tempDir;
+
     private PictureRenamer pictureRenamer;
 
-    @Rule
-    public TemporaryFolder tempFolder = new TemporaryFolder();
-
-    @Before
-    public void setUp() {
+    @BeforeEach
+    void setUp() {
         AlbumDetails albumDetails = new AlbumDetails(
                 "TestAlbum", "test_directory", false, "",
                 true, true, false, true);
         pictureRenamer = new PictureRenamer(albumDetails);
     }
 
-    @Test
-    public void testParseDateFromFilename() {
-        LocalDateTime date = pictureRenamer.parseDateFromFilename("2021-08-15 12.30.45.jpg");
-        assertNotNull(date);
-        DateTimeFormatter sdf = DateTimeFormatter.ofPattern("yyyy-MM-dd HH.mm.ss");
-        assertEquals("2021-08-15 12.30.45", date.format(sdf));
-    }
+    @Nested
+    @DisplayName("Date Parsing")
+    class DateParsing {
 
-    @Test
-    public void testParseDateFromFilenameReturnsNullOnBadInput() {
-        LocalDateTime date = pictureRenamer.parseDateFromFilename("not-a-date.jpg");
-        assertNull(date);
-    }
-
-    @Test
-    public void testGetFilesInDir() throws IOException {
-        tempFolder.newFile("photo1.jpg");
-        tempFolder.newFile("photo2.png");
-        tempFolder.newFile("video.mp4");
-
-        Collection<File> files = pictureRenamer.getFilesInDir(tempFolder.getRoot().getAbsolutePath());
-        assertNotNull(files);
-        assertEquals(3, files.size());
-    }
-
-    @Test
-    public void testGetFilesInDirEmpty() {
-        Collection<File> files = pictureRenamer.getFilesInDir(tempFolder.getRoot().getAbsolutePath());
-        assertNotNull(files);
-        assertTrue(files.isEmpty());
-    }
-
-    @Test
-    public void testGrabMetadataWithVideoExtractor() throws IOException {
-        File videoFile = tempFolder.newFile("test.mp4");
-        long timestamp = 1629034245000L; // 2021-08-15 in millis
-        videoFile.setLastModified(timestamp);
-
-        pictureRenamer.grabMetadata(videoFile, new VideoMetadataExtractor());
-
-        assertFalse(pictureRenamer.temporaryNames.isEmpty());
-        assertEquals(1, pictureRenamer.temporaryNames.size());
-        assertTrue(pictureRenamer.fileMap.containsKey(pictureRenamer.temporaryNames.get(0)));
-        assertEquals(videoFile, pictureRenamer.fileMap.get(pictureRenamer.temporaryNames.get(0)));
-    }
-
-    @Test(expected = RuntimeException.class)
-    public void testGrabMetadataThrowsOnFailure() {
-        File nonExistentFile = new File(tempFolder.getRoot(), "does_not_exist.jpg");
-        MetadataExtractor failingExtractor = f -> {
-            throw new RuntimeException("Simulated extraction failure");
-        };
-
-        pictureRenamer.grabMetadata(nonExistentFile, failingExtractor);
-    }
-
-    @Test
-    public void testCustomNumberFormatAndSeparator() throws IOException {
-        AlbumDetails details = new AlbumDetails(
-                "Trip", tempFolder.getRoot().getAbsolutePath(), false, "",
-                false, false, false, true,
-                tempFolder.getRoot().getAbsolutePath(), 1, "%04d", "-");
-        PictureRenamer renamer = new PictureRenamer(details);
-
-        File videoFile = tempFolder.newFile("test.mp4");
-        videoFile.setLastModified(1629034245000L);
-        renamer.grabMetadata(videoFile, new VideoMetadataExtractor());
-
-        assertNotNull(renamer.albumDirName);
-        assertTrue(renamer.albumDirName.contains("Trip"));
-    }
-
-    @Test
-    public void testRenamePicturesWithDefaultOptions() throws IOException {
-        String src = tempFolder.getRoot().getAbsolutePath();
-        String dest = tempFolder.newFolder("dest").getAbsolutePath();
-        AlbumDetails details = new AlbumDetails(
-                "Vacation", src, true, "2021-08-15",
-                true, true, false, true,
-                dest, 1, "%03d", " ");
-
-        File vid1 = tempFolder.newFile("clip1.mp4");
-        vid1.setLastModified(1629034245000L);
-        File vid2 = tempFolder.newFile("clip2.mp4");
-        vid2.setLastModified(1629034246000L);
-
-        PictureRenamer renamer = new PictureRenamer(details);
-        renamer.renamePictures();
-
-        File albumDir = new File(dest + File.separator + "2021" + File.separator + "2021-08-15, Vacation");
-        assertTrue("Album dir should exist", albumDir.exists());
-        String[] files = albumDir.list();
-        assertNotNull(files);
-        java.util.Arrays.sort(files);
-        assertEquals(2, files.length);
-        assertEquals("Vacation 001.mp4", files[0]);
-        assertEquals("Vacation 002.mp4", files[1]);
-    }
-
-    @Test
-    public void testRenamePicturesWithDashSeparatorAndFourDigitPadding() throws IOException {
-        String src = tempFolder.getRoot().getAbsolutePath();
-        String dest = tempFolder.newFolder("dest").getAbsolutePath();
-        AlbumDetails details = new AlbumDetails(
-                "Trip", src, true, "2023-01-10",
-                true, true, false, true,
-                dest, 1, "%04d", "-");
-
-        File vid = tempFolder.newFile("video.mp4");
-        vid.setLastModified(1629034245000L);
-
-        PictureRenamer renamer = new PictureRenamer(details);
-        renamer.renamePictures();
-
-        File albumDir = new File(dest + File.separator + "2023" + File.separator + "2023-01-10, Trip");
-        assertTrue("Album dir should exist", albumDir.exists());
-        String[] files = albumDir.list();
-        assertNotNull(files);
-        assertEquals(1, files.length);
-        assertEquals("Trip-0001.mp4", files[0]);
-    }
-
-    @Test
-    public void testRenamePicturesWithUnderscoreSeparatorAndCustomCounter() throws IOException {
-        String src = tempFolder.getRoot().getAbsolutePath();
-        String dest = tempFolder.newFolder("dest").getAbsolutePath();
-        AlbumDetails details = new AlbumDetails(
-                "Event", src, true, "2024-06-01",
-                true, true, false, true,
-                dest, 10, "%02d", "_");
-
-        File vid = tempFolder.newFile("a.mp4");
-        vid.setLastModified(1629034245000L);
-
-        PictureRenamer renamer = new PictureRenamer(details);
-        renamer.renamePictures();
-
-        File albumDir = new File(dest + File.separator + "2024" + File.separator + "2024-06-01, Event");
-        String[] files = albumDir.list();
-        assertNotNull(files);
-        assertEquals(1, files.length);
-        assertEquals("Event_10.mp4", files[0]);
-    }
-
-    @Test
-    public void testRenamePicturesWithNoSeparator() throws IOException {
-        String src = tempFolder.getRoot().getAbsolutePath();
-        String dest = tempFolder.newFolder("dest").getAbsolutePath();
-        AlbumDetails details = new AlbumDetails(
-                "Album", src, true, "2025-03-04",
-                true, true, false, true,
-                dest, 1, "%03d", "");
-
-        File vid = tempFolder.newFile("x.mp4");
-        vid.setLastModified(1629034245000L);
-
-        PictureRenamer renamer = new PictureRenamer(details);
-        renamer.renamePictures();
-
-        File albumDir = new File(dest + File.separator + "2025" + File.separator + "2025-03-04, Album");
-        String[] files = albumDir.list();
-        assertNotNull(files);
-        assertEquals(1, files.length);
-        assertEquals("Album001.mp4", files[0]);
-    }
-
-    @Test
-    public void testAlbumDirNameSetFromFirstFile() throws IOException {
-        File videoFile = tempFolder.newFile("test.mp4");
-        // Set to a known date: 2021-08-15
-        long timestamp = 1629034245000L;
-        videoFile.setLastModified(timestamp);
-
-        assertNull(pictureRenamer.albumDirName);
-        pictureRenamer.grabMetadata(videoFile, new VideoMetadataExtractor());
-        assertNotNull(pictureRenamer.albumDirName);
-        assertTrue(pictureRenamer.albumDirName.contains("TestAlbum"));
-    }
-
-    @Test
-    public void testRollbackOnMoveFailure() throws IOException {
-        String src = tempFolder.getRoot().getAbsolutePath();
-        File destFolder = tempFolder.newFolder("dest");
-        String dest = destFolder.getAbsolutePath();
-        AlbumDetails details = new AlbumDetails(
-                "Trip", src, true, "2021-08-15",
-                true, true, false, true,
-                dest, 1, "%03d", " ");
-
-        File vid1 = tempFolder.newFile("clip1.mp4");
-        vid1.setLastModified(1629034245000L);
-
-        PictureRenamer renamer = new PictureRenamer(details);
-
-        // Pre-create the album dir, then put a directory with the same name as
-        // the file that will be moved — Files.move throws when target is a directory
-        File albumDir = new File(dest + File.separator + "2021" + File.separator + "2021-08-15, Trip");
-        albumDir.mkdirs();
-        File blocker = new File(albumDir, "Trip 001.mp4");
-        blocker.mkdir(); // a directory, not a file — will block the move
-
-        try {
-            renamer.renamePictures();
-            fail("Should have thrown RuntimeException");
-        } catch (RuntimeException e) {
-            assertTrue(e.getMessage().contains("File operation failed"));
+        @Test
+        void parsesDateFromValidFilename() {
+            LocalDateTime date = pictureRenamer.parseDateFromFilename("2021-08-15 12.30.45.jpg");
+            assertThat(date).isNotNull();
+            DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH.mm.ss");
+            assertThat(date.format(fmt)).isEqualTo("2021-08-15 12.30.45");
         }
 
-        // After rollback, original file should be back in source dir
-        File[] srcFiles = new File(src).listFiles(f -> !f.isDirectory());
-        assertNotNull(srcFiles);
-        assertEquals("Original file should be restored", 1, srcFiles.length);
-        assertEquals("clip1.mp4", srcFiles[0].getName());
+        @Test
+        void returnsNullForInvalidFilename() {
+            LocalDateTime date = pictureRenamer.parseDateFromFilename("not-a-date.jpg");
+            assertThat(date).isNull();
+        }
+    }
+
+    @Nested
+    @DisplayName("File Listing")
+    class FileListing {
+
+        @Test
+        void listsAllFilesInDirectory() throws IOException {
+            Files.createFile(tempDir.resolve("photo1.jpg"));
+            Files.createFile(tempDir.resolve("photo2.png"));
+            Files.createFile(tempDir.resolve("video.mp4"));
+
+            Collection<File> files = pictureRenamer.getFilesInDir(tempDir.toString());
+            assertThat(files).hasSize(3);
+        }
+
+        @Test
+        void returnsEmptyCollectionForEmptyDir() {
+            Collection<File> files = pictureRenamer.getFilesInDir(tempDir.toString());
+            assertThat(files).isNotNull().isEmpty();
+        }
+    }
+
+    @Nested
+    @DisplayName("Metadata Extraction")
+    class MetadataExtraction {
+
+        @Test
+        void grabsMetadataFromVideoFile() throws IOException {
+            Path videoFile = Files.createFile(tempDir.resolve("test.mp4"));
+            videoFile.toFile().setLastModified(1629034245000L);
+
+            pictureRenamer.grabMetadata(videoFile.toFile(), new VideoMetadataExtractor());
+
+            assertThat(pictureRenamer.temporaryNames).hasSize(1);
+            assertThat(pictureRenamer.fileMap).containsKey(pictureRenamer.temporaryNames.get(0));
+            assertThat(pictureRenamer.fileMap.get(pictureRenamer.temporaryNames.get(0)))
+                    .isEqualTo(videoFile.toFile());
+        }
+
+        @Test
+        void throwsWhenMetadataExtractionFails() throws Exception {
+            File nonExistent = tempDir.resolve("does_not_exist.jpg").toFile();
+            MetadataExtractor failingExtractor = Mockito.mock(MetadataExtractor.class);
+            when(failingExtractor.extractDateTaken(any())).thenThrow(new RuntimeException("Simulated failure"));
+
+            assertThatThrownBy(() -> pictureRenamer.grabMetadata(nonExistent, failingExtractor))
+                    .isInstanceOf(RuntimeException.class);
+        }
+
+        @Test
+        void setsAlbumDirNameFromFirstFile() throws IOException {
+            Path videoFile = Files.createFile(tempDir.resolve("test.mp4"));
+            videoFile.toFile().setLastModified(1629034245000L);
+
+            assertThat(pictureRenamer.albumDirName).isNull();
+            pictureRenamer.grabMetadata(videoFile.toFile(), new VideoMetadataExtractor());
+            assertThat(pictureRenamer.albumDirName).isNotNull().contains("TestAlbum");
+        }
+
+        @Test
+        void setsAlbumDirNameWithCustomFormat() throws IOException {
+            AlbumDetails details = new AlbumDetails(
+                    "Trip", tempDir.toString(), false, "",
+                    false, false, false, true,
+                    tempDir.toString(), 1, "%04d", "-");
+            PictureRenamer renamer = new PictureRenamer(details);
+
+            Path videoFile = Files.createFile(tempDir.resolve("test.mp4"));
+            videoFile.toFile().setLastModified(1629034245000L);
+            renamer.grabMetadata(videoFile.toFile(), new VideoMetadataExtractor());
+
+            assertThat(renamer.albumDirName).isNotNull().contains("Trip");
+        }
+    }
+
+    @Nested
+    @DisplayName("Rename with Formatting Options")
+    class RenameFormatting {
+
+        @Test
+        void renamesMultipleFilesInOrder() throws IOException {
+            Path dest = Files.createDirectory(tempDir.resolve("dest"));
+            AlbumDetails details = new AlbumDetails(
+                    "Vacation", tempDir.toString(), true, "2021-08-15",
+                    true, true, false, true,
+                    dest.toString(), 1, "%03d", " ");
+
+            Path vid1 = Files.createFile(tempDir.resolve("clip1.mp4"));
+            vid1.toFile().setLastModified(1629034245000L);
+            Path vid2 = Files.createFile(tempDir.resolve("clip2.mp4"));
+            vid2.toFile().setLastModified(1629034246000L);
+
+            PictureRenamer renamer = new PictureRenamer(details);
+            renamer.renamePictures();
+
+            File albumDir = new File(dest.toString(), "2021" + File.separator + "2021-08-15, Vacation");
+            assertThat(albumDir).exists();
+            String[] files = albumDir.list();
+            assertThat(files).isNotNull().hasSize(2);
+            Arrays.sort(files);
+            assertThat(files[0]).isEqualTo("Vacation 001.mp4");
+            assertThat(files[1]).isEqualTo("Vacation 002.mp4");
+        }
+
+        @Test
+        void renamesWithDashSeparatorAndFourDigitPadding() throws IOException {
+            Path dest = Files.createDirectory(tempDir.resolve("dest"));
+            AlbumDetails details = new AlbumDetails(
+                    "Trip", tempDir.toString(), true, "2023-01-10",
+                    true, true, false, true,
+                    dest.toString(), 1, "%04d", "-");
+
+            Path vid = Files.createFile(tempDir.resolve("video.mp4"));
+            vid.toFile().setLastModified(1629034245000L);
+
+            PictureRenamer renamer = new PictureRenamer(details);
+            renamer.renamePictures();
+
+            File albumDir = new File(dest.toString(), "2023" + File.separator + "2023-01-10, Trip");
+            assertThat(albumDir).exists();
+            String[] files = albumDir.list();
+            assertThat(files).isNotNull().hasSize(1);
+            assertThat(files[0]).isEqualTo("Trip-0001.mp4");
+        }
+
+        @Test
+        void renamesWithUnderscoreSeparatorAndCustomCounter() throws IOException {
+            Path dest = Files.createDirectory(tempDir.resolve("dest"));
+            AlbumDetails details = new AlbumDetails(
+                    "Event", tempDir.toString(), true, "2024-06-01",
+                    true, true, false, true,
+                    dest.toString(), 10, "%02d", "_");
+
+            Path vid = Files.createFile(tempDir.resolve("a.mp4"));
+            vid.toFile().setLastModified(1629034245000L);
+
+            PictureRenamer renamer = new PictureRenamer(details);
+            renamer.renamePictures();
+
+            File albumDir = new File(dest.toString(), "2024" + File.separator + "2024-06-01, Event");
+            String[] files = albumDir.list();
+            assertThat(files).isNotNull().hasSize(1);
+            assertThat(files[0]).isEqualTo("Event_10.mp4");
+        }
+
+        @Test
+        void renamesWithNoSeparator() throws IOException {
+            Path dest = Files.createDirectory(tempDir.resolve("dest"));
+            AlbumDetails details = new AlbumDetails(
+                    "Album", tempDir.toString(), true, "2025-03-04",
+                    true, true, false, true,
+                    dest.toString(), 1, "%03d", "");
+
+            Path vid = Files.createFile(tempDir.resolve("x.mp4"));
+            vid.toFile().setLastModified(1629034245000L);
+
+            PictureRenamer renamer = new PictureRenamer(details);
+            renamer.renamePictures();
+
+            File albumDir = new File(dest.toString(), "2025" + File.separator + "2025-03-04, Album");
+            String[] files = albumDir.list();
+            assertThat(files).isNotNull().hasSize(1);
+            assertThat(files[0]).isEqualTo("Album001.mp4");
+        }
+    }
+
+    @Nested
+    @DisplayName("Rollback")
+    class RollbackTests {
+
+        @Test
+        void rollsBackOnMoveFailure() throws IOException {
+            Path dest = Files.createDirectory(tempDir.resolve("dest"));
+            AlbumDetails details = new AlbumDetails(
+                    "Trip", tempDir.toString(), true, "2021-08-15",
+                    true, true, false, true,
+                    dest.toString(), 1, "%03d", " ");
+
+            Path vid1 = Files.createFile(tempDir.resolve("clip1.mp4"));
+            vid1.toFile().setLastModified(1629034245000L);
+
+            PictureRenamer renamer = new PictureRenamer(details);
+
+            // Pre-create blocking directory at target location
+            File albumDir = new File(dest.toString(), "2021" + File.separator + "2021-08-15, Trip");
+            albumDir.mkdirs();
+            new File(albumDir, "Trip 001.mp4").mkdir();
+
+            assertThatThrownBy(renamer::renamePictures)
+                    .isInstanceOf(RuntimeException.class)
+                    .hasMessageContaining("File operation failed");
+
+            File[] srcFiles = tempDir.toFile().listFiles(f -> !f.isDirectory());
+            assertThat(srcFiles).isNotNull().hasSize(1);
+            assertThat(srcFiles[0].getName()).isEqualTo("clip1.mp4");
+        }
     }
 }
